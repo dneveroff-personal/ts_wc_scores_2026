@@ -1,0 +1,42 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/wc_scores}
+    username: ${DB_USER:wc_user}
+    password: ${DB_PASSWORD:wc_pass}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  liquibase:
+    change-log: classpath:db/migration/changelog-master.xml
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN}
+    username: ${TELEGRAM_BOT_USERNAME}
+
+football-data:
+  api:
+    url: https://api.football-data.org/v4
+    token: ${FOOTBALL_DATA_TOKEN}
+    competition-code: WC  # Will be updated to WC2026 when available
+
+scoring:
+  exact-score: 4        # Угадал точный счёт
+  correct-outcome: 2    # Угадал исход (победитель/ничья)
+  goal-difference: 1    # Бонус за угаданную разницу голов
+
+scheduler:
+  sync-matches: "0 */30 * * * *"       # каждые 30 минут
+  calculate-scores: "0 */5 * * * *"    # каждые 5 минут
+  send-reminders: "0 0 * * * *"        # каждый час
+
+logging:
+  level:
+    com.tswcscores: DEBUG
+    org.telegram: INFO

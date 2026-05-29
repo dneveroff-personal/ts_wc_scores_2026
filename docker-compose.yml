@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wc_scores_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wc_scores
+      POSTGRES_USER: wc_user
+      POSTGRES_PASSWORD: wc_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wc_user -d wc_scores"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: wc_scores_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/wc_scores
+      DB_USER: wc_user
+      DB_PASSWORD: wc_pass
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      FOOTBALL_DATA_TOKEN: ${FOOTBALL_DATA_TOKEN}
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
