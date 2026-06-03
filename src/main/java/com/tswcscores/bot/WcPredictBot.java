@@ -33,6 +33,9 @@ public class WcPredictBot extends TelegramLongPollingBot {
     @Value("${telegram.bot.username}")
     private String botUsername;
 
+    @Value("${predictions.window.hours}")
+    private int predictionsWindow;
+
     public WcPredictBot(
             @Value("${telegram.bot.token}") String botToken,
             UserService userService,
@@ -107,7 +110,7 @@ public class WcPredictBot extends TelegramLongPollingBot {
             return;
         }
         List<Match> matches = matchRepository.findUpcoming(
-                LocalDateTime.now(), LocalDateTime.now().plusHours(24));
+                LocalDateTime.now(), LocalDateTime.now().plusHours(predictionsWindow));
 
         SendMessage message = SendMessage.builder()
                 .chatId(chatId.toString())

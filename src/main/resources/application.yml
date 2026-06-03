@@ -38,6 +38,10 @@ scheduler:
   calculate-scores: "0 */30 * * * *"    # каждые 30 минут
   send-reminders: "0 0 * * * *"        # каждый час
 
+predictions:
+  window:
+    hours: 400
+
 logging:
   level:
     com.tswcscores: DEBUG
