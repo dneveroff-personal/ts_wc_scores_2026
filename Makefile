@@ -1,4 +1,4 @@
-.PHONY: build clean up-clean up down run-local
+.PHONY: build clean up-clean up down run-local rebuild-app status logs
 GREEN  := \033[32m
 YELLOW := \033[33m
 
@@ -32,3 +32,16 @@ status:
 logs:
 	docker logs $(C) --tail=100
 
+## Run application locally with config override
+run-local:
+	@echo "$(GREEN)Running application locally with config override..."
+	@if [ ! -f config/application.yml ]; then \
+		echo "$(YELLOW)Warning: config/application.yml not found, using defaults"; \
+	fi
+	./gradlew bootRun -Dspring.config.additional-location=file:config/application.yml
+
+rebuild-app:
+	@echo "$(GREEN)Rebuilding and ReStarting Project..."
+	docker compose stop app
+	@$(MAKE) build
+	docker compose up -d app --remove-orphans --build

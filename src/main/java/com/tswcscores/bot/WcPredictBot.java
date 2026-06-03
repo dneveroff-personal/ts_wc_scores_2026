@@ -66,7 +66,13 @@ public class WcPredictBot extends TelegramLongPollingBot {
 
         switch (command) {
             case "/start", "/register" -> handleRegister(chatId, tgUser);
-            case "/matches" -> handleMatches(chatId, tgUser.getId());
+            case "/matches" -> {
+                try {
+                    handleMatches(chatId, tgUser.getId());
+                } catch (TelegramApiException e) {
+                    throw new RuntimeException(e);
+                }
+            }
             case "/predict" -> handlePredict(chatId, tgUser.getId(), text);
             case "/mypredictions" -> handleMyPredictions(chatId, tgUser.getId());
             case "/leaderboard" -> handleLeaderboard(chatId);
@@ -94,7 +100,7 @@ public class WcPredictBot extends TelegramLongPollingBot {
         sendText(chatId, response);
     }
 
-    private void handleMatches(Long chatId, Long telegramId) {
+    private void handleMatches(Long chatId, Long telegramId) throws TelegramApiException {
         Optional<User> userOpt = userService.findByTelegramId(telegramId);
         if (userOpt.isEmpty()) {
             sendText(chatId, BotMessageBuilder.notRegistered());
@@ -168,18 +174,15 @@ public class WcPredictBot extends TelegramLongPollingBot {
     }
 
     private void sendText(Long chatId, String text) {
-        execute(SendMessage.builder()
-                .chatId(chatId.toString())
-                .text(text)
-                .parseMode("HTML")
-                .build());
-    }
-
-    private void execute(SendMessage msg) {
         try {
-            execute((org.telegram.telegrambots.meta.api.methods.BotApiMethod<?>) msg);
+            execute((org.telegram.telegrambots.meta.api.methods.BotApiMethod<?>)
+                    SendMessage.builder()
+                            .chatId(chatId.toString())
+                            .text(text)
+                            .parseMode("HTML")
+                            .build());
         } catch (TelegramApiException e) {
-            log.error("TelegramApiException: {}", e.getMessage());
+            log.error("Failed to send message to chatId={}: {}", chatId, e.getMessage());
         }
     }
 }

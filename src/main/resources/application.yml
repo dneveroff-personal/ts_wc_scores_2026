@@ -16,9 +16,6 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: false
-  # Веб-сервер не нужен для Telegram-бота
-  main:
-    web-application-type: none
 
 telegram:
   bot:

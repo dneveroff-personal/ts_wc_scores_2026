@@ -70,3 +70,13 @@ tasks.withType<KotlinCompile> {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// Конфигурация для использования config/application.yml как override
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    classpath = sourceSets["main"].runtimeClasspath
+    // Spring Boot автоматически подхватывает config/application.yml если он есть
+    // через spring.config.additional-location
+    jvmArgs = listOf(
+        "-Dspring.config.additional-location=file:config/application.yml"
+    )
+}

@@ -14,5 +14,7 @@ RUN --mount=type=cache,target=/root/.gradle \
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
+COPY config/application.yml config/application.yml
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Spring Boot подхватит config/application.yml как override
+ENTRYPOINT ["java", "-Dspring.config.additional-location=file:/app/config/application.yml", "-jar", "app.jar"]
