@@ -168,15 +168,11 @@ public class WcPredictBot extends TelegramLongPollingBot {
     }
 
     private void sendText(Long chatId, String text) {
-        try {
-            execute(SendMessage.builder()
-                    .chatId(chatId.toString())
-                    .text(text)
-                    .parseMode("HTML")
-                    .build());
-        } catch (TelegramApiException e) {
-            log.error("Failed to send message to chatId={}: {}", chatId, e.getMessage());
-        }
+        execute(SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(text)
+                .parseMode("HTML")
+                .build());
     }
 
     private void execute(SendMessage msg) {

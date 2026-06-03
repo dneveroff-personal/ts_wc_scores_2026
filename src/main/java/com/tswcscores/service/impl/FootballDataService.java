@@ -69,7 +69,7 @@ public class FootballDataService {
         match.setStatus(Match.Status.valueOf(apiMatch.getStatus()));
         match.setStage(apiMatch.getStage());
         if (apiMatch.getGroup() != null) {
-            match.setGroupName(apiMatch.getGroup().getName());
+            match.setGroupName(apiMatch.getGroup());
         }
 
         // Обновляем счёт для завершённых матчей

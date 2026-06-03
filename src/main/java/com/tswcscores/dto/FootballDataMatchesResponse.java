@@ -2,7 +2,6 @@ package com.tswcscores.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
-import java.time.OffsetDateTime;
 import java.util.List;
 
 /** Ответ от football-data.org /v4/competitions/{code}/matches */
@@ -18,16 +17,10 @@ public class FootballDataMatchesResponse {
         private String utcDate;
         private String status;
         private String stage;
-        private Group group;
+        private String group;
         private TeamRef homeTeam;
         private TeamRef awayTeam;
         private Score score;
-
-        @Data
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        public static class Group {
-            private String name;
-        }
 
         @Data
         @JsonIgnoreProperties(ignoreUnknown = true)
