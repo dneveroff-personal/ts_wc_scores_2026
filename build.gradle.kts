@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "1.0.0-SNAPSHOT"
+version = "1.0.1"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -45,7 +45,7 @@ dependencies {
     implementation("org.glassfish.jaxb:jaxb-runtime:4.0.3")
 
     // Telegram Bots
-    implementation("org.telegram:telegrambots-spring-boot-starter:$telegramBotsVersion")
+    implementation("org.telegram:telegrambots:$telegramBotsVersion")
 
     // Lombok (для Java-классов, если останутся)
     compileOnly("org.projectlombok:lombok")
@@ -71,12 +71,7 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-// Конфигурация для использования config/application.yml как override
-tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
-    classpath = sourceSets["main"].runtimeClasspath
-    // Spring Boot автоматически подхватывает config/application.yml если он есть
-    // через spring.config.additional-location
-    jvmArgs = listOf(
-        "-Dspring.config.additional-location=file:config/application.yml"
-    )
+// Только один jar на выходе — executable bootJar
+tasks.named("jar") {
+    enabled = false
 }

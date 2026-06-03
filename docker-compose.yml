@@ -13,6 +13,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tswc-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wc_user -d wc_scores"]
       interval: 10s
@@ -26,15 +28,24 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env                          # гарантирует загрузку .env в контейнер
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/wc_scores
       DB_USER: wc_user
       DB_PASSWORD: wc_pass
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
-      FOOTBALL_DATA_TOKEN: ${FOOTBALL_DATA_TOKEN}
+    networks:
+      - tswc-network
     ports:
       - "8080:8080"
+      - "5004:5004"
 
 volumes:
   postgres_data:
+
+networks:
+  tswc-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16
