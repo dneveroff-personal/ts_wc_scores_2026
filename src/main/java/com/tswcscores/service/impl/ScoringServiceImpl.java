@@ -60,7 +60,8 @@ public class ScoringServiceImpl implements ScoringService {
         int points = 0;
         if (correctOutcome) {
             points += props.getCorrectOutcome();
-            if (correctGoalDifference) {
+            // Only add goal difference points if it's not a draw (draws always have goal difference 0)
+            if (correctGoalDifference && realHome != realAway) {
                 points += props.getGoalDifference();
             }
         }

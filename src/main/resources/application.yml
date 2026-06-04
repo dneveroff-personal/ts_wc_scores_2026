@@ -8,10 +8,7 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+    open-in-view: false
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -26,17 +23,17 @@ football-data:
   api:
     url: https://api.football-data.org/v4
     token: ${FOOTBALL_DATA_TOKEN}
-    competition-code: WC  # Will be updated to WC2026 when available
+    competition-code: WC
 
 scoring:
-  exact-score: 4        # Угадал точный счёт
-  correct-outcome: 2    # Угадал исход (победитель/ничья)
-  goal-difference: 1    # Бонус за угаданную разницу голов
+  exact-score: 4
+  correct-outcome: 2
+  goal-difference: 1
 
 scheduler:
-  sync-matches: "0 */30 * * * *"       # каждые 30 минут
-  calculate-scores: "0 */30 * * * *"    # каждые 30 минут
-  send-reminders: "0 0 * * * *"        # каждый час
+  sync-matches: "0 0 */2 * * *"     # каждые 2 часа
+  calculate-scores: "0 0 * * * *"   # каждый час
+  send-reminders: "0 0 * * * *"     # каждый час
 
 predictions:
   window:

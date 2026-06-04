@@ -6,15 +6,16 @@ import com.tswcscores.entity.Match;
 import com.tswcscores.entity.Team;
 import com.tswcscores.repository.MatchRepository;
 import com.tswcscores.repository.TeamRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Service
@@ -28,9 +29,16 @@ public class FootballDataService {
     @Value("${football-data.api.competition-code}")
     private String competitionCode;
 
+    /** Синхронизация при старте приложения */
+    @PostConstruct
+    public void syncOnStartup() {
+        log.info("🚀 Initial match sync on startup...");
+        syncMatches();
+    }
+
     @Transactional
     public void syncMatches() {
-        log.info("Syncing matches from football-data.org for competition: {}", competitionCode);
+        log.info("Syncing matches from football-data.org, competition: {}", competitionCode);
         try {
             FootballDataMatchesResponse response = footballDataClient.get()
                     .uri("/competitions/{code}/matches", competitionCode)
@@ -46,17 +54,29 @@ public class FootballDataService {
             List<FootballDataMatch> apiMatches = response.getMatches();
             log.info("Fetched {} matches from API", apiMatches.size());
 
+            AtomicInteger saved = new AtomicInteger(0);
             for (FootballDataMatch apiMatch : apiMatches) {
-                upsertMatch(apiMatch);
+                if (upsertMatch(apiMatch)) saved.incrementAndGet();
             }
+            log.info("✅ Sync complete: {}/{} matches saved/updated", saved.get(), apiMatches.size());
+            saved.get();
+
         } catch (Exception e) {
-            log.error("Failed to sync matches from football-data.org", e);
+            log.error("Failed to sync matches from football-data.org: {}", e.getMessage(), e);
         }
     }
 
-    private void upsertMatch(FootballDataMatch apiMatch) {
+    /** @return true если матч был сохранён/обновлён */
+    private boolean upsertMatch(FootballDataMatch apiMatch) {
         Team homeTeam = upsertTeam(apiMatch.getHomeTeam());
         Team awayTeam = upsertTeam(apiMatch.getAwayTeam());
+
+        // Плей-офф матчи до жеребьёвки — команды ещё не известны, пропускаем
+        if (homeTeam == null || awayTeam == null) {
+            log.debug("Skipping match {} — teams not yet determined (stage: {})",
+                    apiMatch.getId(), apiMatch.getStage());
+            return false;
+        }
 
         Match match = matchRepository.findByExternalId(apiMatch.getId())
                 .orElseGet(() -> Match.builder()
@@ -68,11 +88,12 @@ public class FootballDataService {
         match.setUtcDate(OffsetDateTime.parse(apiMatch.getUtcDate()).toLocalDateTime());
         match.setStatus(Match.Status.valueOf(apiMatch.getStatus()));
         match.setStage(apiMatch.getStage());
+
+        // Фикс: getGroup() возвращает объект, нужен .getName()
         if (apiMatch.getGroup() != null) {
-            match.setGroupName(apiMatch.getGroup());
+            match.setGroupName(apiMatch.getGroup().getName());
         }
 
-        // Обновляем счёт для завершённых матчей
         if ("FINISHED".equals(apiMatch.getStatus()) && apiMatch.getScore() != null
                 && apiMatch.getScore().getFullTime() != null) {
             match.setHomeScore(apiMatch.getScore().getFullTime().getHome());
@@ -80,6 +101,7 @@ public class FootballDataService {
         }
 
         matchRepository.save(match);
+        return true;
     }
 
     private Team upsertTeam(FootballDataMatch.TeamRef ref) {

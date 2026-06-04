@@ -17,7 +17,7 @@ public class FootballDataMatchesResponse {
         private String utcDate;
         private String status;
         private String stage;
-        private String group;
+        private Group group;
         private TeamRef homeTeam;
         private TeamRef awayTeam;
         private Score score;
@@ -43,6 +43,12 @@ public class FootballDataMatchesResponse {
                 private Integer home;
                 private Integer away;
             }
+        }
+
+        @Data
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class Group {
+            private String name;
         }
     }
 }

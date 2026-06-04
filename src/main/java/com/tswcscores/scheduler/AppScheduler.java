@@ -1,15 +1,17 @@
 package com.tswcscores.scheduler;
 
+import com.tswcscores.bot.WcPredictBot;
+import com.tswcscores.entity.Match;
 import com.tswcscores.repository.MatchRepository;
 import com.tswcscores.repository.PredictionRepository;
 import com.tswcscores.service.ScoringService;
 import com.tswcscores.service.impl.FootballDataService;
-import com.tswcscores.bot.WcPredictBot;
-import com.tswcscores.entity.Match;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -27,14 +29,26 @@ public class AppScheduler {
     private final PredictionRepository predictionRepository;
     private final WcPredictBot bot;
 
-    /** Синхронизация расписания и результатов с API */
+    /** Синхронизация при старте приложения */
+    @PostConstruct
+    public void syncOnStartup() {
+        log.info("🚀 Startup: initial match sync");
+        try {
+            footballDataService.syncMatches();
+            log.info("✅ Initial sync complete");
+        } catch (Exception e) {
+            log.error("❌ Initial sync failed: {}", e.getMessage());
+        }
+    }
+
+    /** Синхронизация каждые 2 часа */
     @Scheduled(cron = "${scheduler.sync-matches}")
     public void syncMatches() {
         log.info("⏰ Scheduler: syncing matches");
         footballDataService.syncMatches();
     }
 
-    /** Подсчёт очков для завершённых матчей */
+    /** Подсчёт очков каждый час */
     @Scheduled(cron = "${scheduler.calculate-scores}")
     public void calculateScores() {
         log.info("⏰ Scheduler: calculating scores");
@@ -45,7 +59,7 @@ public class AppScheduler {
     @Scheduled(cron = "${scheduler.send-reminders}")
     public void sendReminders() {
         LocalDateTime from = LocalDateTime.now().plusMinutes(50);
-        LocalDateTime to = LocalDateTime.now().plusMinutes(70);
+        LocalDateTime to   = LocalDateTime.now().plusMinutes(70);
 
         List<Match> upcoming = matchRepository.findMatchesStartingBetween(from, to);
         if (upcoming.isEmpty()) return;
@@ -54,13 +68,9 @@ public class AppScheduler {
         for (Match match : upcoming) {
             List<Long> telegramIds = predictionRepository.findTelegramIdsWithoutPrediction(match.getId());
             for (Long telegramId : telegramIds) {
-                String msg = String.format(
-                        "⏰ Через час матч: <b>%s</b> (%s)\nТы ещё не сделал прогноз!\n" +
-                        "Нажми /matches и сделай ставку 👇",
-                        match.getTitle(),
-                        match.getUtcDate().format(FMT)
-                );
-                bot.sendNotification(telegramId, msg);
+                bot.sendNotification(telegramId, String.format(
+                        "⏰ Через час матч: <b>%s</b> (%s)\nТы ещё не сделал прогноз!\nНажми /matches 👇",
+                        match.getTitle(), match.getUtcDate().format(FMT)));
             }
         }
     }

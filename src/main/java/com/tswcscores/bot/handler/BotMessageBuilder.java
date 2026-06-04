@@ -6,23 +6,18 @@ import com.tswcscores.entity.User;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/** Форматирование всех сообщений бота в одном месте */
 public class BotMessageBuilder {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     public static String welcome(User user) {
         return String.format("""
                 🏆 <b>TS WC Scores 2026</b>
-                
+
                 Привет, %s! Ты зарегистрирован.
-                
-                📋 Команды:
-                /matches — матчи ближайших 24 ч.
-                /mypredictions — мои прогнозы
-                /leaderboard — таблица лидеров
-                
+
+                Используй /help чтобы увидеть все команды.
+
                 За прогнозы начисляются очки:
                 ⭐ Точный счёт — 4 очка
                 ✅ Правильный исход — 2 очка
@@ -31,12 +26,36 @@ public class BotMessageBuilder {
     }
 
     public static String alreadyRegistered() {
-        return "Ты уже зарегистрирован! 👍\n\n/matches — посмотреть ближайшие матчи";
+        return "Ты уже зарегистрирован! 👍\n\nИспользуй /help для списка команд.";
+    }
+
+    public static String help() {
+        return """
+                🏆 <b>TS WC Scores 2026 — команды:</b>
+
+                👤 <b>Участие</b>
+                /register — зарегистрироваться в игре
+
+                ⚽ <b>Матчи и прогнозы</b>
+                /matches — матчи ближайших 24 часов
+                /predict {id} {гол1} {гол2} — сделать прогноз
+                    пример: <code>/predict 42 2 1</code>
+                /mypredictions — мои прогнозы и очки
+
+                🏅 <b>Рейтинг</b>
+                /leaderboard — таблица лидеров
+
+                🔧 <b>Служебные (для админа)</b>
+                /sync — принудительная синхронизация матчей с API
+                /calcscore — принудительный подсчёт очков
+
+                /help — эта справка
+                """;
     }
 
     public static String matchList(List<Match> matches) {
         if (matches.isEmpty()) {
-            return "😴 Ближайших матчей нет. Проверь позже!";
+            return "😴 Ближайших матчей нет. Проверь позже!\n\nМатчи синхронизируются каждые 2 часа.";
         }
         StringBuilder sb = new StringBuilder("⚽ <b>Ближайшие матчи (24 ч):</b>\n\n");
         for (Match m : matches) {
@@ -47,14 +66,14 @@ public class BotMessageBuilder {
             }
             sb.append("\n");
         }
-        sb.append("\nНажми кнопку матча или введи:\n<code>/predict {id} {гол1} {гол2}</code>");
+        sb.append("Нажми кнопку ниже чтобы сделать прогноз 👇");
         return sb.toString();
     }
 
     public static String predictionSaved(Prediction p) {
         return String.format("""
                 ✅ Прогноз принят!
-                
+
                 ⚽ <b>%s</b>
                 📊 Твой прогноз: <b>%d : %d</b>
                 """,
@@ -101,15 +120,19 @@ public class BotMessageBuilder {
         return "Ты ещё не зарегистрирован.\n/register — начать играть";
     }
 
-    public static String predictHelp() {
-        return """
-                ❓ <b>Как делать прогноз:</b>
-                
-                <code>/predict {id_матча} {гол1} {гол2}</code>
-                
-                Пример: <code>/predict 42 2 1</code>
-                
-                ID матча видно в /matches 👆
-                """;
+    public static String syncStarted() {
+        return "🔄 Синхронизация матчей запущена...";
+    }
+
+    public static String syncDone() {
+        return "✅ Синхронизация завершена. Используй /matches чтобы проверить.";
+    }
+
+    public static String calcScoreStarted() {
+        return "🔄 Подсчёт очков запущен...";
+    }
+
+    public static String calcScoreDone() {
+        return "✅ Подсчёт очков завершён. Используй /leaderboard чтобы проверить.";
     }
 }

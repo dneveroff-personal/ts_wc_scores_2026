@@ -40,3 +40,6 @@ out/
 .tree.txt
 .env
 
+-e 
+# PostgreSQL data directory (bind mount)
+data/

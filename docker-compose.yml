@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -12,7 +10,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Данные хранятся в ./data/postgres на хосте — легко перенести на другую машину
+      - ./data/postgres:/var/lib/postgresql/data
     networks:
       - tswc-network
     healthcheck:
@@ -29,7 +28,7 @@ services:
       postgres:
         condition: service_healthy
     env_file:
-      - .env                          # гарантирует загрузку .env в контейнер
+      - .env
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/wc_scores
       DB_USER: wc_user
@@ -40,12 +39,6 @@ services:
       - "8080:8080"
       - "5004:5004"
 
-volumes:
-  postgres_data:
-
 networks:
   tswc-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.23.0.0/16
