@@ -89,9 +89,9 @@ public class FootballDataService {
         match.setStatus(Match.Status.valueOf(apiMatch.getStatus()));
         match.setStage(apiMatch.getStage());
 
-        // Фикс: getGroup() возвращает объект, нужен .getName()
+        // group — просто строка ("GROUP_A"), не объект
         if (apiMatch.getGroup() != null) {
-            match.setGroupName(apiMatch.getGroup().getName());
+            match.setGroupName(apiMatch.getGroup());
         }
 
         if ("FINISHED".equals(apiMatch.getStatus()) && apiMatch.getScore() != null
