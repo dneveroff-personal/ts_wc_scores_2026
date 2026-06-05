@@ -15,6 +15,7 @@ spring:
     baseline-on-migrate: false
 
 telegram:
+  admin-chat-id: ${TELEGRAM_ADMIN_CHAT_ID:0}
   bot:
     token: ${TELEGRAM_BOT_TOKEN}
     username: ${TELEGRAM_BOT_USERNAME}
@@ -37,9 +38,10 @@ scheduler:
 
 predictions:
   window:
-    hours: 400
+    hours: 240
 
 logging:
   level:
     com.tswcscores: DEBUG
-    org.telegram: INFO
+    org.telegram:
+  admin-chat-id: ${TELEGRAM_ADMIN_CHAT_ID:0} INFO

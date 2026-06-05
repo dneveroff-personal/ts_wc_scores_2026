@@ -45,3 +45,8 @@ rebuild-app:
 	docker compose stop app
 	@$(MAKE) build
 	docker compose up -d app --remove-orphans --build
+# Создать папку для данных БД с правильными правами (нужно один раз перед первым запуском)
+init-data:
+	mkdir -p data/postgres
+	sudo chown -R 999:999 data/postgres
+	@echo "✅ data/postgres ready"

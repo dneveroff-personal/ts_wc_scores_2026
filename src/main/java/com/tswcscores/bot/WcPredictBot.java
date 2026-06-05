@@ -16,9 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -65,12 +63,6 @@ public class WcPredictBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        // Обработка нажатий на inline-кнопки
-        if (update.hasCallbackQuery()) {
-            handleCallback(update.getCallbackQuery());
-            return;
-        }
-
         if (!update.hasMessage() || !update.getMessage().hasText()) return;
 
         Message msg = update.getMessage();
@@ -103,37 +95,6 @@ public class WcPredictBot extends TelegramLongPollingBot {
         }
     }
 
-    // --- Обработка callback от inline-кнопок ---
-    private void handleCallback(CallbackQuery callback) {
-        String data = callback.getData();
-        Long chatId = callback.getMessage().getChatId();
-        Long telegramId = callback.getFrom().getId();
-
-        // Убираем "крутилку" с кнопки в Telegram
-        answerCallback(callback.getId());
-
-        if (data.startsWith(InlineKeyboardFactory.PREDICT_PREFIX)) {
-            String matchIdStr = data.substring(InlineKeyboardFactory.PREDICT_PREFIX.length());
-            Optional<User> userOpt = userService.findByTelegramId(telegramId);
-            if (userOpt.isEmpty()) {
-                sendText(chatId, BotMessageBuilder.notRegistered());
-                return;
-            }
-            // Подсказываем пользователю что вводить — команду с уже подставленным id
-            sendText(chatId, String.format(
-                    "Введи счёт для матча #%s:\n\n<code>/predict %s 2 1</code>\n\nЗамени <b>2 1</b> на свой прогноз и отправь.",
-                    matchIdStr, matchIdStr));
-        }
-    }
-
-    private void answerCallback(String callbackId) {
-        try {
-            execute(AnswerCallbackQuery.builder().callbackQueryId(callbackId).build());
-        } catch (TelegramApiException e) {
-            log.warn("Failed to answer callback: {}", e.getMessage());
-        }
-    }
-
     // --- Команды ---
     private void handleRegister(Long chatId, org.telegram.telegrambots.meta.api.objects.User tgUser) {
         boolean exists = userService.findByTelegramId(tgUser.getId().longValue()).isPresent();
@@ -155,11 +116,14 @@ public class WcPredictBot extends TelegramLongPollingBot {
         List<Match> matches = matchRepository.findUpcoming(
                 LocalDateTime.now(), LocalDateTime.now().plusHours(predictionsWindow));
 
+        // Загружаем прогнозы пользователя чтобы отметить их на кнопках
+        List<Prediction> userPredictions = predictionService.getUserPredictions(userOpt.get());
+
         SendMessage message = SendMessage.builder()
                 .chatId(chatId.toString())
                 .text(BotMessageBuilder.matchList(matches))
                 .parseMode("HTML")
-                .replyMarkup(matches.isEmpty() ? null : InlineKeyboardFactory.matchListKeyboard(matches))
+                .replyMarkup(matches.isEmpty() ? null : InlineKeyboardFactory.matchListKeyboard(matches, userPredictions))
                 .build();
         try {
             execute(message);

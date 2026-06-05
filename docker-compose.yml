@@ -3,6 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: wc_scores_db
     restart: unless-stopped
+    user: "999:999"           # uid/gid пользователя postgres внутри контейнера
     environment:
       POSTGRES_DB: wc_scores
       POSTGRES_USER: wc_user
@@ -10,7 +11,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # Данные хранятся в ./data/postgres на хосте — легко перенести на другую машину
       - ./data/postgres:/var/lib/postgresql/data
     networks:
       - tswc-network

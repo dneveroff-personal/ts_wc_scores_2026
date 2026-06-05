@@ -17,6 +17,7 @@ public class FootballDataMatchesResponse {
         private String utcDate;
         private String status;
         private String stage;
+        // API возвращает "group": "GROUP_A" — просто строка, не объект
         private String group;
         private TeamRef homeTeam;
         private TeamRef awayTeam;
