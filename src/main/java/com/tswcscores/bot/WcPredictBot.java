@@ -13,7 +13,9 @@ import com.tswcscores.service.impl.FootballDataService;
 import com.tswcscores.service.impl.PredictionService;
 import com.tswcscores.service.impl.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -41,19 +43,23 @@ public class WcPredictBot extends TelegramLongPollingBot {
     @Value("${predictions.window.hours}")
     private int predictionsWindow;
 
+    public final String BOT_VERSION;
+
     public WcPredictBot(
             @Value("${telegram.bot.token}") String botToken,
             UserService userService,
             PredictionService predictionService,
             MatchRepository matchRepository,
             FootballDataService footballDataService,
-            ScoringService scoringService) {
+            ScoringService scoringService,
+            @Autowired(required = false) BuildProperties buildProperties) {
         super(botToken);
         this.userService = userService;
         this.predictionService = predictionService;
         this.matchRepository = matchRepository;
         this.footballDataService = footballDataService;
         this.scoringService = scoringService;
+        this.BOT_VERSION  = buildProperties != null ? buildProperties.getVersion() : "dev";
     }
 
     @Override
@@ -84,7 +90,7 @@ public class WcPredictBot extends TelegramLongPollingBot {
             case "/predict"            -> handlePredict(chatId, tgUser.getId(), text);
             case "/mypredictions"      -> handleMyPredictions(chatId, tgUser.getId());
             case "/leaderboard"        -> handleLeaderboard(chatId);
-            case "/help"               -> sendText(chatId, BotMessageBuilder.help());
+            case "/help"               -> sendText(chatId, BotMessageBuilder.help(BOT_VERSION));
             case "/sync"               -> handleSync(chatId, tgUser.getId());
             case "/calcscore"          -> handleCalcScore(chatId, tgUser.getId());
             default -> {

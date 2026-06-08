@@ -29,8 +29,8 @@ public class BotMessageBuilder {
         return "Ты уже зарегистрирован! 👍\n\nИспользуй /help для списка команд.";
     }
 
-    public static String help() {
-        return """
+    public static String help(String botVersion) {
+        return String.format("""
                 🏆 <b>TS WC Scores 2026 — команды:</b>
 
                 👤 <b>Участие</b>
@@ -50,7 +50,9 @@ public class BotMessageBuilder {
                 /calcscore — принудительный подсчёт очков
 
                 /help — эта справка
-                """;
+                
+                ver. %s
+                """,  botVersion);
     }
 
     public static String matchList(List<Match> matches) {

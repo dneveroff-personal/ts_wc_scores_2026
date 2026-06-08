@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "1.0.2"
+version = "1.0.3"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -27,6 +27,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 
     // Kotlin
@@ -60,6 +61,14 @@ dependencies {
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
 }
 
+springBoot {
+    buildInfo {
+        properties {
+            version = project.version.toString()
+        }
+    }
+}
+
 tasks.withType<KotlinCompile> {
     kotlinOptions {
         freeCompilerArgs += "-Xjsr305=strict"
@@ -75,3 +84,4 @@ tasks.withType<Test> {
 tasks.named("jar") {
     enabled = false
 }
+
