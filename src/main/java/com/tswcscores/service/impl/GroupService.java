@@ -46,18 +46,6 @@ public class GroupService {
                         .user(user).chatGroup(group).build());
             }
         });
-
-        int[] nums = new int[3];
-        nums[0] = 1;
-        nums[1] = 2;
-        nums[2] = 3;
-        int ansLength = nums.length * 2;
-        int[] ans = new int[ansLength];
-
-        for (int i = 0; i < ansLength; i++) {
-            ans[i] = nums[i];
-            ans[i + ansLength] = nums[i];
-        }
     }
 
     /** Добавляет очки пользователю в конкретной группе */

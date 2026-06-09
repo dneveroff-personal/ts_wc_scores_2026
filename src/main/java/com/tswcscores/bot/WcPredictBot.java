@@ -84,10 +84,26 @@ public class WcPredictBot extends TelegramLongPollingBot {
         // Авторегистрация группы при любом сообщении боту из группы
         if (isGroup && msg.getChat() != null) {
             groupService.registerGroup(chatId, msg.getChat().getTitle());
+            // Привязываем пользователя к группе при первом взаимодействии
+            // (нужно для корректного начисления групповых очков)
+            userService.findByTelegramId(tgUser.getId().longValue())
+                    .ifPresent(u -> groupService.ensureUserInGroup(u, chatId));
         }
 
-        // Убираем @botname из команды
-        if (text.contains("@")) text = text.substring(0, text.indexOf("@"));
+        // Telegram в группе вставляет "@botname" — может быть как суффикс ("/cmd@bot"),
+        // так и префикс ("@bot /cmd счёт") при использовании switchInlineQueryCurrentChat.
+        // Нормализуем оба варианта.
+        if (text.startsWith("@")) {
+            // "@bot /predict 1 2 1" → "/predict 1 2 1"
+            int spaceIdx = text.indexOf(" ");
+            text = spaceIdx >= 0 ? text.substring(spaceIdx).trim() : "";
+        } else if (text.contains("@")) {
+            // "/predict@bot 1 2 1" → "/predict 1 2 1"
+            String[] tokens = text.split("\\s+");
+            tokens[0] = tokens[0].substring(0, tokens[0].indexOf("@"));
+            text = String.join(" ", tokens);
+        }
+        if (text.isEmpty()) return;
 
         String command = text.split("\\s+")[0].toLowerCase();
         log.debug("Command '{}' from user {} in chat {}", command, tgUser.getId(), chatId);
@@ -209,11 +225,7 @@ public class WcPredictBot extends TelegramLongPollingBot {
             Prediction p = predictionService.savePrediction(userOpt.get(), matchId, homeScore, awayScore);
             sendText(chatId, BotMessageBuilder.predictionSaved(p));
 
-            // Если прогноз сделан в группе — привязываем пользователя к группе
-            // чтобы групповые очки начислялись корректно
-            if (chatId < 0) {
-                groupService.ensureUserInGroup(userOpt.get(), chatId);
-            }
+            // ensureUserInGroup вызывается в onUpdateReceived для всех команд из группы
         } catch (NumberFormatException e) {
             sendText(chatId, "Формат: <code>/predict {id} {гол1} {гол2}</code>");
         } catch (DeadlinePassedException e) {

@@ -53,11 +53,12 @@ public class InlineKeyboardFactory {
                         m.getUtcDate().format(FMT));
             }
 
-            // callbackData — работает везде (личка и группа) без Inline Mode.
-            // При нажатии бот получает callback и отвечает подсказкой с командой.
+            // switchInlineQueryCurrentChat вставляет текст в поле ввода пользователя.
+            // В группе Telegram добавляет "@botname " перед текстом — это нормально,
+            // бот умеет обрабатывать команды вида "@botname /predict 42 2 1".
             InlineKeyboardButton btn = InlineKeyboardButton.builder()
                     .text(label)
-                    .callbackData(PREDICT_PREFIX + m.getId())
+                    .switchInlineQueryCurrentChat("/predict " + m.getId() + " ")
                     .build();
             rows.add(List.of(btn));
         }
