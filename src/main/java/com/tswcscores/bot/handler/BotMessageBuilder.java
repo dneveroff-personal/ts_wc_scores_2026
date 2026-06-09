@@ -137,4 +137,20 @@ public class BotMessageBuilder {
     public static String calcScoreDone() {
         return "✅ Подсчёт очков завершён. Используй /leaderboard чтобы проверить.";
     }
+
+    public static String groupLeaderboard(String groupTitle, java.util.List<com.tswcscores.entity.UserGroupPoints> entries) {
+        if (entries.isEmpty()) return "В этой группе пока нет участников 😅\n/register — зарегистрироваться";
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("🏆 <b>Рейтинг группы %s:</b>\n\n",
+                groupTitle != null ? groupTitle : ""));
+        String[] medals = {"🥇", "🥈", "🥉"};
+        for (int i = 0; i < entries.size(); i++) {
+            var ugp = entries.get(i);
+            String medal = i < medals.length ? medals[i] : (i + 1) + ".";
+            sb.append(String.format("%s  <b>%s</b>  —  %d pts\n",
+                    medal, ugp.getUser().getDisplayName(), ugp.getPoints()));
+        }
+        return sb.toString();
+    }
+
 }

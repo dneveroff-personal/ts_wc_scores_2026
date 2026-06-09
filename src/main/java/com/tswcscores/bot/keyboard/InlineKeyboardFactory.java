@@ -21,7 +21,7 @@ public class InlineKeyboardFactory {
      *
      * Кнопка без прогноза:
      *   🇫🇷 Франция — Бразилия 🇧🇷  14.06 18:00
-     *   При нажатии — вставляет "/predict 42 " в поле ввода (switchInlineQueryCurrentChat)
+     *   При нажатии — шлёт callback боту, бот отвечает подсказкой с командой
      *
      * Кнопка с прогнозом:
      *   ✅ 🇫🇷 Франция — Бразилия 🇧🇷  2:1
@@ -53,12 +53,11 @@ public class InlineKeyboardFactory {
                         m.getUtcDate().format(FMT));
             }
 
-            // switchInlineQueryCurrentChat вставляет текст в поле ввода без отправки.
-            // Работает без Inline Mode — Inline Mode нужен только для ответов бота на inline-запросы.
-            // Пользователь видит "/predict 42 " в поле и просто дописывает "2 1" → отправляет.
+            // callbackData — работает везде (личка и группа) без Inline Mode.
+            // При нажатии бот получает callback и отвечает подсказкой с командой.
             InlineKeyboardButton btn = InlineKeyboardButton.builder()
                     .text(label)
-                    .switchInlineQueryCurrentChat("/predict " + m.getId() + " ")
+                    .callbackData(PREDICT_PREFIX + m.getId())
                     .build();
             rows.add(List.of(btn));
         }

@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "1.0.3"
+version = "1.0.4"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -84,4 +84,3 @@ tasks.withType<Test> {
 tasks.named("jar") {
     enabled = false
 }
-

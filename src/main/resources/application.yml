@@ -27,21 +27,21 @@ football-data:
     competition-code: WC
 
 scoring:
-  exact-score: 4
+  exact-score: 5
   correct-outcome: 2
   goal-difference: 1
 
 scheduler:
-  sync-matches: "0 0 */2 * * *"     # каждые 2 часа
-  calculate-scores: "0 0 * * * *"   # каждый час
-  send-reminders: "0 0 * * * *"     # каждый час
+  sync-matches: "0 0 */2 * * *"
+  calculate-scores: "0 0 * * * *"
+  send-reminders: "0 0 * * * *"
 
 predictions:
   window:
-    hours: 240
+    hours: 100
 
 logging:
   level:
     com.tswcscores: DEBUG
-    org.telegram:
-  admin-chat-id: ${TELEGRAM_ADMIN_CHAT_ID:0} INFO
+    org.telegram: INFO
+admin-chat-id: ${TELEGRAM_ADMIN_CHAT_ID:0}

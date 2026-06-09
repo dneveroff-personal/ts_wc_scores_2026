@@ -2,12 +2,8 @@ package com.tswcscores.service.impl;
 
 import com.tswcscores.config.ScoringProperties;
 import com.tswcscores.dto.ScoringResult;
-import com.tswcscores.entity.Match;
-import com.tswcscores.entity.Prediction;
-import com.tswcscores.entity.User;
-import com.tswcscores.repository.MatchRepository;
-import com.tswcscores.repository.PredictionRepository;
-import com.tswcscores.repository.UserRepository;
+import com.tswcscores.entity.*;
+import com.tswcscores.repository.*;
 import com.tswcscores.service.ScoringService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,15 +20,14 @@ public class ScoringServiceImpl implements ScoringService {
     private final MatchRepository matchRepository;
     private final PredictionRepository predictionRepository;
     private final UserRepository userRepository;
+    private final UserGroupPointsRepository userGroupPointsRepository;
 
     @Override
     public ScoringResult calculatePoints(Prediction prediction, Match match) {
-        if (!match.isFinished()) {
+        if (!match.isFinished())
             throw new IllegalArgumentException("Match is not finished: " + match.getId());
-        }
-        if (match.getHomeScore() == null || match.getAwayScore() == null) {
-            throw new IllegalArgumentException("Match score is not available: " + match.getId());
-        }
+        if (match.getHomeScore() == null || match.getAwayScore() == null)
+            throw new IllegalArgumentException("Match score not available: " + match.getId());
 
         int predHome = prediction.getHomeScore();
         int predAway = prediction.getAwayScore();
@@ -60,7 +55,6 @@ public class ScoringServiceImpl implements ScoringService {
         int points = 0;
         if (correctOutcome) {
             points += props.getCorrectOutcome();
-            // Only add goal difference points if it's not a draw (draws always have goal difference 0)
             if (correctGoalDifference && realHome != realAway) {
                 points += props.getGoalDifference();
             }
@@ -79,7 +73,6 @@ public class ScoringServiceImpl implements ScoringService {
     public void processFinishedMatches() {
         List<Match> matches = matchRepository.findFinishedNotCalculated();
         if (matches.isEmpty()) return;
-
         log.info("Processing scores for {} finished matches", matches.size());
 
         for (Match match : matches) {
@@ -89,13 +82,24 @@ public class ScoringServiceImpl implements ScoringService {
                 prediction.setPointsEarned(result.getPoints());
                 predictionRepository.save(prediction);
 
-                // Обновляем общий счёт пользователя
-                User user = prediction.getUser();
-                user.setTotalPoints(user.getTotalPoints() + result.getPoints());
-                userRepository.save(user);
+                if (result.getPoints() > 0) {
+                    User user = prediction.getUser();
 
-                log.debug("User {} scored {} pts for match {}", user.getDisplayName(),
-                        result.getPoints(), match.getTitle());
+                    // Глобальные очки
+                    user.setTotalPoints(user.getTotalPoints() + result.getPoints());
+                    userRepository.save(user);
+
+                    // Групповые очки — начисляем во все группы, где есть этот пользователь
+                    List<UserGroupPoints> groupEntries = userGroupPointsRepository
+                            .findAllByUserId(user.getId());
+                    for (UserGroupPoints ugp : groupEntries) {
+                        ugp.setPoints(ugp.getPoints() + result.getPoints());
+                        userGroupPointsRepository.save(ugp);
+                    }
+
+                    log.debug("User {} +{} pts for match {}",
+                            user.getDisplayName(), result.getPoints(), match.getTitle());
+                }
             }
             match.setScoresCalculated(true);
             matchRepository.save(match);
@@ -103,7 +107,6 @@ public class ScoringServiceImpl implements ScoringService {
         }
     }
 
-    /** -1 = away wins, 0 = draw, 1 = home wins */
     private int getOutcome(int home, int away) {
         return Integer.compare(home, away);
     }

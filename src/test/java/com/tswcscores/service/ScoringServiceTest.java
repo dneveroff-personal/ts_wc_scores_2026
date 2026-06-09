@@ -34,7 +34,7 @@ class ScoringServiceTest {
     @BeforeEach
     void setUp() {
         props = new ScoringProperties();
-        props.setExactScore(4);
+        props.setExactScore(5);
         props.setCorrectOutcome(2);
         props.setGoalDifference(1);
         scoringService = new ScoringServiceImpl(props, matchRepository, predictionRepository, userRepository);
@@ -48,7 +48,7 @@ class ScoringServiceTest {
 
         ScoringResult result = scoringService.calculatePoints(pred, match);
 
-        assertThat(result.getPoints()).isEqualTo(4);
+        assertThat(result.getPoints()).isEqualTo(5);
         assertThat(result.isExactScore()).isTrue();
         assertThat(result.isCorrectOutcome()).isTrue();
     }
@@ -93,14 +93,14 @@ class ScoringServiceTest {
     }
 
     @Test
-    @DisplayName("Точная ничья → 4 очка")
-    void exactDraw_returns4Points() {
+    @DisplayName("Точная ничья → 5 очков")
+    void exactDraw_returns5Points() {
         Prediction pred = prediction(0, 0);
         Match match = finishedMatch(0, 0);
 
         ScoringResult result = scoringService.calculatePoints(pred, match);
 
-        assertThat(result.getPoints()).isEqualTo(4);
+        assertThat(result.getPoints()).isEqualTo(5);
         assertThat(result.isExactScore()).isTrue();
     }
 
