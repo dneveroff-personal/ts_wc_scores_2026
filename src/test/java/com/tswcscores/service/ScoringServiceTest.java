@@ -7,6 +7,7 @@ import com.tswcscores.entity.Prediction;
 import com.tswcscores.entity.User;
 import com.tswcscores.repository.MatchRepository;
 import com.tswcscores.repository.PredictionRepository;
+import com.tswcscores.repository.UserGroupPointsRepository;
 import com.tswcscores.repository.UserRepository;
 import com.tswcscores.service.impl.ScoringServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,7 @@ class ScoringServiceTest {
     @Mock private MatchRepository matchRepository;
     @Mock private PredictionRepository predictionRepository;
     @Mock private UserRepository userRepository;
+    @Mock private UserGroupPointsRepository userGroupPointsRepository;
 
     @BeforeEach
     void setUp() {
@@ -37,7 +39,7 @@ class ScoringServiceTest {
         props.setExactScore(5);
         props.setCorrectOutcome(2);
         props.setGoalDifference(1);
-        scoringService = new ScoringServiceImpl(props, matchRepository, predictionRepository, userRepository);
+        scoringService = new ScoringServiceImpl(props, matchRepository, predictionRepository, userRepository, userGroupPointsRepository);
     }
 
     @Test

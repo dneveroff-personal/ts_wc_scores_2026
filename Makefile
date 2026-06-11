@@ -28,6 +28,9 @@ rebuild-app:
 	@$(MAKE) build
 	docker compose up -d app --remove-orphans --build
 
+status:
+	@echo "$(YELLOW)Containers Status"
+	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 # --- Деплой на VPS ---
 # Копируем только собранный jar + docker-compose + конфиги (~15 MB вместо 105 MB)
@@ -35,11 +38,11 @@ rebuild-app:
 deploy: build
 	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make deploy HOST=root@89.125.248.168"; exit 1; fi
 	@echo "📦 Copying files to $(HOST)..."
-	ssh $(HOST) "mkdir -p ~/ts-wc-scores/scripts"
+	#ssh $(HOST) "mkdir -p ~/ts-wc-scores/scripts"
 	# Копируем только то что нужно серверу
 	rsync -avz 		build/libs/ts-wc-scores-*.jar 		$(HOST):~/ts-wc-scores/app.jar
 	rsync -avz 		docker-compose.yml 		Dockerfile 		scripts/setup-vps.sh 		$(HOST):~/ts-wc-scores/
-	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down && docker compose up -d"
+	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down --remove-orphans && docker compose up -d"
 	@echo "✅ Deployed to $(HOST)"
 
 # --- Синхронизация БД ---
@@ -82,6 +85,6 @@ init-data:
 	sudo chown -R 999:999 data/postgres
 	@echo "✅ data/postgres ready"
 
-# Просмотр логов
+## SHow last 100 rows of set CONTAINER (C)
 logs:
-	docker compose logs -f app
+	docker logs $(C) --tail=100
