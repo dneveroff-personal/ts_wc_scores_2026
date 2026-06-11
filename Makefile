@@ -42,7 +42,7 @@ deploy: build
 	# Копируем только то что нужно серверу
 	rsync -avz 		build/libs/ts-wc-scores-*.jar 		$(HOST):~/ts-wc-scores/app.jar
 	rsync -avz 		docker-compose.yml 		Dockerfile 		scripts/setup-vps.sh 		$(HOST):~/ts-wc-scores/
-	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down --remove-orphans && docker compose up -d"
+	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down --remove-orphans && docker compose -f docker-compose.yml up -d --remove-orphans --build"
 	@echo "✅ Deployed to $(HOST)"
 
 # --- Синхронизация БД ---

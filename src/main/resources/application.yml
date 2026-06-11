@@ -38,7 +38,7 @@ scheduler:
 
 predictions:
   window:
-    hours: 100
+    hours: 24
 
 logging:
   level:
