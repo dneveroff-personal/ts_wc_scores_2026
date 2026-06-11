@@ -37,13 +37,15 @@ status:
 # Использование: make deploy HOST=user@your-vps.com
 deploy: build
 	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make deploy HOST=root@89.125.248.168"; exit 1; fi
-	@echo "📦 Copying files to $(HOST)..."
-	#ssh $(HOST) "mkdir -p ~/ts-wc-scores/scripts"
-	# Копируем только то что нужно серверу
-	rsync -avz 		build/libs/ts-wc-scores-*.jar 		$(HOST):~/ts-wc-scores/app.jar
-	rsync -avz 		docker-compose.yml 		Dockerfile 		scripts/setup-vps.sh 		$(HOST):~/ts-wc-scores/
-	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down --remove-orphans && docker compose -f docker-compose.yml up -d --remove-orphans --build"
-	@echo "✅ Deployed to $(HOST)"
+	$(eval JAR := $(shell ls build/libs/ts-wc-scores-*.jar | grep -v plain | head -1))
+	@if [ -z "$(JAR)" ]; then echo "❌ JAR not found in build/libs/"; exit 1; fi
+	$(eval VERSION := $(shell echo $(JAR) | grep -oP '\d+\.\d+\.\d+'))
+	@echo "📦 Deploying version $(VERSION) to $(HOST)..."
+	ssh $(HOST) "mkdir -p ~/ts-wc-scores/scripts"
+	rsync -avz $(JAR) $(HOST):~/ts-wc-scores/app.jar
+	rsync -avz docker-compose.yml Dockerfile scripts/setup-vps.sh $(HOST):~/ts-wc-scores/
+	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down --remove-orphans && docker compose up -d --build"
+	@echo "✅ Version $(VERSION) deployed to $(HOST)"
 
 # --- Синхронизация БД ---
 

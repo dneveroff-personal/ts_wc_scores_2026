@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "1.1.1"
+version = "2.0.4"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -19,7 +19,7 @@ repositories {
     mavenCentral()
 }
 
-val telegramBotsVersion = "6.8.0"
+val telegramBotsVersion = "10.0.0"
 
 dependencies {
     // Spring Boot
@@ -39,14 +39,9 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
 
-    // JAXB (required for Java 11+ where it was removed from JDK)
-    // javax.xml.bind API (bridge for old annotations used by telegrambots/jackson)
-    implementation("javax.xml.bind:jaxb-api:2.3.1")
-    // jakarta.xml.bind runtime (for Hibernate 6.x)
-    implementation("org.glassfish.jaxb:jaxb-runtime:4.0.3")
-
-    // Telegram Bots
-    implementation("org.telegram:telegrambots:$telegramBotsVersion")
+    // Telegram Bots 10.x — без рекламы, Jackson и Jakarta идут транзитивно
+    implementation("org.telegram:telegrambots-longpolling:$telegramBotsVersion")
+    implementation("org.telegram:telegrambots-client:$telegramBotsVersion")
 
     // Lombok (для Java-классов, если останутся)
     compileOnly("org.projectlombok:lombok")

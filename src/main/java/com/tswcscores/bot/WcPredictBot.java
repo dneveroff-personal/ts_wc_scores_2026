@@ -14,12 +14,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
+import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,7 +33,10 @@ import java.util.Optional;
 
 @Slf4j
 @Component
-public class WcPredictBot extends TelegramLongPollingBot {
+public class WcPredictBot implements LongPollingSingleThreadUpdateConsumer {
+
+    // В 10.x отправка идёт через TelegramClient, а не через super.execute()
+    private final TelegramClient telegramClient;
 
     private final UserService userService;
     private final PredictionService predictionService;
@@ -53,23 +62,28 @@ public class WcPredictBot extends TelegramLongPollingBot {
             ScoringService scoringService,
             GroupService groupService,
             @Autowired(required = false) BuildProperties buildProperties) {
-        super(botToken);
+        // OkHttpTelegramClient — стандартная реализация TelegramClient в 10.x
+        this.telegramClient = new OkHttpTelegramClient(botToken);
         this.userService = userService;
         this.predictionService = predictionService;
         this.matchRepository = matchRepository;
         this.footballDataService = footballDataService;
         this.scoringService = scoringService;
         this.groupService = groupService;
-        this.BOT_VERSION  = buildProperties != null ? buildProperties.getVersion() : "dev";
+        this.BOT_VERSION = buildProperties != null ? buildProperties.getVersion() : "dev";
     }
 
-    @Override
+    public TelegramClient getTelegramClient() {
+        return telegramClient;
+    }
+
     public String getBotUsername() {
         return botUsername;
     }
 
+    // --- Точка входа для всех апдейтов ---
     @Override
-    public void onUpdateReceived(Update update) {
+    public void consume(Update update) {
         if (update.hasCallbackQuery()) {
             handleCallback(update.getCallbackQuery());
             return;
@@ -82,24 +96,18 @@ public class WcPredictBot extends TelegramLongPollingBot {
         org.telegram.telegrambots.meta.api.objects.User tgUser = msg.getFrom();
         boolean isGroup = chatId < 0;
 
-        // Авторегистрация группы при любом сообщении боту из группы
+        // Авторегистрация группы + привязка пользователя
         if (isGroup && msg.getChat() != null) {
             groupService.registerGroup(chatId, msg.getChat().getTitle());
-            // Привязываем пользователя к группе при первом взаимодействии
-            // (нужно для корректного начисления групповых очков)
             userService.findByTelegramId(tgUser.getId().longValue())
                     .ifPresent(u -> groupService.ensureUserInGroup(u, chatId));
         }
 
-        // Telegram в группе вставляет "@botname" — может быть как суффикс ("/cmd@bot"),
-        // так и префикс ("@bot /cmd счёт") при использовании switchInlineQueryCurrentChat.
-        // Нормализуем оба варианта.
+        // Нормализуем команду: убираем @botname в обоих форматах
         if (text.startsWith("@")) {
-            // "@bot /predict 1 2 1" → "/predict 1 2 1"
             int spaceIdx = text.indexOf(" ");
             text = spaceIdx >= 0 ? text.substring(spaceIdx).trim() : "";
         } else if (text.contains("@")) {
-            // "/predict@bot 1 2 1" → "/predict 1 2 1"
             String[] tokens = text.split("\\s+");
             tokens[0] = tokens[0].substring(0, tokens[0].indexOf("@"));
             text = String.join(" ", tokens);
@@ -107,6 +115,10 @@ public class WcPredictBot extends TelegramLongPollingBot {
         if (text.isEmpty()) return;
 
         String command = text.split("\\s+")[0].toLowerCase();
+        // Для ReplyKeyboard кнопок: приводим весь текст к нижнему регистру
+        if (text.contains(" ")) {
+            command = text.toLowerCase();
+        }
         log.debug("Command '{}' from user {} in chat {}", command, tgUser.getId(), chatId);
 
         switch (command) {
@@ -119,10 +131,10 @@ public class WcPredictBot extends TelegramLongPollingBot {
             case "/sync"               -> handleSync(chatId);
             case "/calcscore"          -> handleCalcScore(chatId);
             // Текстовые кнопки ReplyKeyboard
-            case "⚽ матчи"         -> handleMatches(chatId, tgUser.getId());
-            case "📋 мои прогнозы" -> handleMyPredictions(chatId, tgUser.getId());
-            case "🏆 рейтинг"       -> handleLeaderboard(chatId, text);
-            case "❓ помощь"        -> sendText(chatId, BotMessageBuilder.help(BOT_VERSION));
+            case "⚽ matches"         -> handleMatches(chatId, tgUser.getId());
+            case "📋 my predictions" -> handleMyPredictions(chatId, tgUser.getId());
+            case "🏆 leaderboard"       -> handleLeaderboard(chatId, text);
+            case "❓ help"        -> sendText(chatId, BotMessageBuilder.help(BOT_VERSION));
             default -> {
                 if (!isGroup) sendText(chatId, "Не понял команду. Используй /help");
             }
@@ -147,29 +159,24 @@ public class WcPredictBot extends TelegramLongPollingBot {
         String matchIdStr = data.substring(InlineKeyboardFactory.PREDICT_PREFIX.length());
 
         if (isGroup) {
-            // В группе: показываем toast-подсказку и дублируем в личку
-            answerCallback(callback.getId(),
-                    "Напиши в личку боту: /predict " + matchIdStr + " 2 1", false);
-            // Шлём в личку подробную подсказку
+            answerCallback(callback.getId(), "Напиши в личку боту: /predict " + matchIdStr + " 2 1", false);
             sendText(telegramId,
-                    "⚽ Введи счёт — просто скопируй и замени цифры:\n\n" +
+                    "⚽ Введи счёт — скопируй и замени цифры:\n\n" +
                     "<code>/predict " + matchIdStr + " 2 1</code>");
         } else {
-            // В личке: toast + в том же чате
             answerCallback(callback.getId(), "Введи счёт 👇", false);
             sendText(chatId,
-                    "⚽ Введи счёт — скопируй и замени <b>2 1</b> на свой прогноз:\n\n" +
+                    "⚽ Введи счёт — замени <b>2 1</b> на свой прогноз:\n\n" +
                     "<code>/predict " + matchIdStr + " 2 1</code>");
         }
     }
 
     private void answerCallback(String callbackId, String text, boolean alert) {
         try {
-            execute(AnswerCallbackQuery.builder()
-                    .callbackQueryId(callbackId)
-                    .text(text)
-                    .showAlert(alert)
-                    .build());
+            AnswerCallbackQuery answer = new AnswerCallbackQuery(callbackId);
+            answer.setText(text);
+            answer.setShowAlert(alert);
+            telegramClient.execute(answer);
         } catch (TelegramApiException e) {
             log.warn("Failed to answer callback: {}", e.getMessage());
         }
@@ -201,13 +208,12 @@ public class WcPredictBot extends TelegramLongPollingBot {
         List<Prediction> userPredictions = predictionService.getUserPredictions(userOpt.get());
 
         try {
-            execute(SendMessage.builder()
-                    .chatId(chatId.toString())
-                    .text(BotMessageBuilder.matchList(matches))
-                    .parseMode("HTML")
-                    .replyMarkup(matches.isEmpty() ? null :
-                            InlineKeyboardFactory.matchListKeyboard(matches, userPredictions))
-                    .build());
+            SendMessage msg = new SendMessage(chatId.toString(), BotMessageBuilder.matchList(matches));
+            msg.setParseMode("HTML");
+            if (!matches.isEmpty()) {
+                msg.setReplyMarkup(InlineKeyboardFactory.matchListKeyboard(matches, userPredictions));
+            }
+            telegramClient.execute(msg);
         } catch (TelegramApiException e) {
             log.error("Failed to send matches: {}", e.getMessage());
         }
@@ -231,8 +237,6 @@ public class WcPredictBot extends TelegramLongPollingBot {
             }
             Prediction p = predictionService.savePrediction(userOpt.get(), matchId, homeScore, awayScore);
             sendText(chatId, BotMessageBuilder.predictionSaved(p));
-
-            // ensureUserInGroup вызывается в onUpdateReceived для всех команд из группы
         } catch (NumberFormatException e) {
             sendText(chatId, "Формат: <code>/predict {id} {гол1} {гол2}</code>");
         } catch (DeadlinePassedException e) {
@@ -253,17 +257,11 @@ public class WcPredictBot extends TelegramLongPollingBot {
         boolean isGroup = chatId < 0;
 
         if (global || !isGroup) {
-            // Глобальный рейтинг
             sendText(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
         } else {
-            // Рейтинг группы
             var entries = groupService.getGroupLeaderboard(chatId);
-            String title = null;
-            var group = entries.isEmpty() ? null :
-                    entries.get(0).getChatGroup();
-            if (group != null) title = group.getTitle();
+            String title = entries.isEmpty() ? null : entries.get(0).getChatGroup().getTitle();
             sendText(chatId, BotMessageBuilder.groupLeaderboard(title, entries));
-            // Подсказка про глобальный
             sendText(chatId, "Для общего рейтинга: /leaderboard global");
         }
     }
@@ -290,19 +288,37 @@ public class WcPredictBot extends TelegramLongPollingBot {
         }
     }
 
+    // --- Утилиты ---
     public void sendNotification(Long telegramId, String htmlText) {
         sendText(telegramId, htmlText);
     }
 
+    public void registerCommands() {
+        try {
+            List<BotCommand> commands = List.of(
+                new BotCommand("register",      "Зарегистрироваться в игре"),
+                new BotCommand("matches",       "Матчи ближайших 24 часов"),
+                new BotCommand("predict",       "Сделать прогноз на матч"),
+                new BotCommand("mypredictions", "Мои прогнозы и очки"),
+                new BotCommand("leaderboard",   "Таблица лидеров группы"),
+                new BotCommand("sync",          "Синхронизация матчей с API"),
+                new BotCommand("calcscore",     "Подсчёт очков"),
+                new BotCommand("help",          "Справка по командам")
+            );
+            SetMyCommands setCommands = new SetMyCommands(commands);
+            setCommands.setScope(new BotCommandScopeDefault());
+            telegramClient.execute(setCommands);
+        } catch (TelegramApiException e) {
+            log.warn("Failed to register bot commands: {}", e.getMessage());
+        }
+    }
+
     private void sendTextWithKeyboard(Long chatId, String text, ReplyKeyboardMarkup keyboard) {
         try {
-            execute((org.telegram.telegrambots.meta.api.methods.BotApiMethod<?>)
-                    SendMessage.builder()
-                            .chatId(chatId.toString())
-                            .text(text)
-                            .parseMode("HTML")
-                            .replyMarkup(keyboard)
-                            .build());
+            SendMessage msg = new SendMessage(chatId.toString(), text);
+            msg.setParseMode("HTML");
+            msg.setReplyMarkup(keyboard);
+            telegramClient.execute(msg);
         } catch (TelegramApiException e) {
             log.error("Failed to send message with keyboard to chatId={}: {}", chatId, e.getMessage());
         }
@@ -310,12 +326,9 @@ public class WcPredictBot extends TelegramLongPollingBot {
 
     private void sendText(Long chatId, String text) {
         try {
-            execute((org.telegram.telegrambots.meta.api.methods.BotApiMethod<?>)
-                    SendMessage.builder()
-                            .chatId(chatId.toString())
-                            .text(text)
-                            .parseMode("HTML")
-                            .build());
+            SendMessage msg = new SendMessage(chatId.toString(), text);
+            msg.setParseMode("HTML");
+            telegramClient.execute(msg);
         } catch (TelegramApiException e) {
             log.error("Failed to send message to chatId={}: {}", chatId, e.getMessage());
         }

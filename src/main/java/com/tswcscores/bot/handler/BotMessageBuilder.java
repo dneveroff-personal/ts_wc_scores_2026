@@ -32,7 +32,8 @@ public class BotMessageBuilder {
     public static String help(String botVersion) {
         return String.format("""
                 🏆 <b>TS WC Scores 2026 — команды:</b>
-
+                <b>(можно вызывать и в группе и в ЛС бота)</b>
+                
                 👤 <b>Участие</b>
                 /register — зарегистрироваться в игре
 
