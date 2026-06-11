@@ -18,7 +18,8 @@ if ! docker compose version &> /dev/null; then
     sudo apt-get update && sudo apt-get install -y docker-compose-plugin
 fi
 
-command -v make &> /dev/null || sudo apt-get install -y make
+command -v make  &> /dev/null || apt-get install -y make
+command -v rsync &> /dev/null || apt-get install -y rsync
 
 mkdir -p ~/ts-wc-scores/data/postgres
 sudo chown -R 999:999 ~/ts-wc-scores/data/postgres

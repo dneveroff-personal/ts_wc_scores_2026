@@ -3,7 +3,7 @@
 # --- Локальная сборка ---
 build:
 	@echo "$(GREEN)Building Project..."
-	./gradlew clean build -x test
+	./gradlew clean build
 	@echo "✅ Build complete: build/libs/*.jar"
 
 up:
@@ -30,14 +30,16 @@ rebuild-app:
 
 
 # --- Деплой на VPS ---
+# Копируем только собранный jar + docker-compose + конфиги (~15 MB вместо 105 MB)
 # Использование: make deploy HOST=user@your-vps.com
 deploy: build
-	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make deploy HOST=user@vps.com"; exit 1; fi
-	ssh $(HOST) "mkdir -p ~/ts-wc-scores"
-	rsync -avz --exclude='.git' --exclude='data/' --exclude='build/' \
-		--exclude='.gradle/' --exclude='*.iml' \
-		. $(HOST):~/ts-wc-scores/
-	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down && docker compose up -d --build"
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make deploy HOST=root@89.125.248.168"; exit 1; fi
+	@echo "📦 Copying files to $(HOST)..."
+	ssh $(HOST) "mkdir -p ~/ts-wc-scores/scripts"
+	# Копируем только то что нужно серверу
+	rsync -avz 		build/libs/ts-wc-scores-*.jar 		$(HOST):~/ts-wc-scores/app.jar
+	rsync -avz 		docker-compose.yml 		Dockerfile 		scripts/setup-vps.sh 		$(HOST):~/ts-wc-scores/
+	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down && docker compose up -d"
 	@echo "✅ Deployed to $(HOST)"
 
 # --- Синхронизация БД ---
@@ -45,7 +47,7 @@ deploy: build
 # Отправить локальную БД на VPS (перезаписывает данные на хосте!)
 # Использование: make db-push HOST=user@your-vps.com
 db-push:
-	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-push HOST=user@vps.com"; exit 1; fi
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-push HOST=root@89.125.248.168"; exit 1; fi
 	@echo "⚠️  Это перезапишет БД на сервере. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
 	@echo "📦 Создаём дамп локальной БД..."
 	docker compose exec postgres pg_dump -U wc_user wc_scores > /tmp/wc_scores_dump.sql
@@ -58,7 +60,7 @@ db-push:
 # Забрать БД с VPS на локальную машину (перезаписывает локальные данные!)
 # Использование: make db-pull HOST=user@your-vps.com
 db-pull:
-	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-pull HOST=user@vps.com"; exit 1; fi
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-pull HOST=root@89.125.248.168"; exit 1; fi
 	@echo "⚠️  Это перезапишет локальную БД. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
 	@echo "📦 Создаём дамп БД на сервере..."
 	ssh $(HOST) "cd ~/ts-wc-scores && \
@@ -83,4 +85,3 @@ init-data:
 # Просмотр логов
 logs:
 	docker compose logs -f app
-

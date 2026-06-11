@@ -113,13 +113,16 @@ public class WcPredictBot extends TelegramLongPollingBot {
             case "/start", "/register" -> handleRegister(chatId, tgUser);
             case "/matches"            -> handleMatches(chatId, tgUser.getId());
             case "/predict"            -> handlePredict(chatId, tgUser.getId(), text);
-            case "/mypredictions", "📋 мои прогнозы" -> handleMyPredictions(chatId, tgUser.getId());
-            case "/leaderboard", "🏆 рейтинг" -> handleLeaderboard(chatId, text);
-            case "/help", "❓ помощь" -> sendText(chatId, BotMessageBuilder.help(BOT_VERSION));
+            case "/mypredictions"      -> handleMyPredictions(chatId, tgUser.getId());
+            case "/leaderboard"        -> handleLeaderboard(chatId, text);
+            case "/help"               -> sendText(chatId, BotMessageBuilder.help(BOT_VERSION));
             case "/sync"               -> handleSync(chatId);
             case "/calcscore"          -> handleCalcScore(chatId);
             // Текстовые кнопки ReplyKeyboard
             case "⚽ матчи"         -> handleMatches(chatId, tgUser.getId());
+            case "📋 мои прогнозы" -> handleMyPredictions(chatId, tgUser.getId());
+            case "🏆 рейтинг"       -> handleLeaderboard(chatId, text);
+            case "❓ помощь"        -> sendText(chatId, BotMessageBuilder.help(BOT_VERSION));
             default -> {
                 if (!isGroup) sendText(chatId, "Не понял команду. Используй /help");
             }

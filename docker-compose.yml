@@ -35,9 +35,6 @@ services:
       DB_PASSWORD: wc_pass
     networks:
       - tswc-network
-    ports:
-      - "8080:8080"
-      - "5004:5004"
 
 networks:
   tswc-network:

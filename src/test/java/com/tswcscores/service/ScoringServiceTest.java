@@ -41,7 +41,7 @@ class ScoringServiceTest {
     }
 
     @Test
-    @DisplayName("Точный счёт → 4 очка")
+    @DisplayName("Точный счёт → 5 очков")
     void exactScore_returns4Points() {
         Prediction pred = prediction(2, 1);
         Match match = finishedMatch(2, 1);
