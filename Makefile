@@ -1,6 +1,15 @@
-.PHONY: build clean up-clean up down run-local rebuild-app status logs
-GREEN  := \033[32m
-YELLOW := \033[33m
+.PHONY: build deploy db-push db-pull db-backup clean up-clean up down run-local rebuild-app status logs
+
+# --- Локальная сборка ---
+build:
+	@echo "$(GREEN)Building Project..."
+	./gradlew clean build -x test
+	@echo "✅ Build complete: build/libs/*.jar"
+
+up:
+	@echo "$(GREEN)Starting Project..."
+	@$(MAKE) build
+	docker compose -f docker-compose.yml up -d --remove-orphans --build
 
 down:
 	docker compose -f docker-compose.yml down --remove-orphans
@@ -13,40 +22,65 @@ clean:
 	docker rmi $$(docker images "dn-quest/*:dev" -q) 2>/dev/null || true
 	@echo "$(GREEN)Очистка завершена!$(RESET)"
 
-up-clean: clean up
-
-build:
-	@echo "$(GREEN)Building Project..."
-	./gradlew clean build -x test
-
-up:
-	@echo "$(GREEN)Starting Project..."
-	@$(MAKE) build
-	docker compose -f docker-compose.yml up -d --remove-orphans --build
-
-status:
-	@echo "$(YELLOW)Containers Status"
-	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-## SHow last 100 rows of set CONTAINER (C)
-logs:
-	docker logs $(C) --tail=100
-
-## Run application locally with config override
-run-local:
-	@echo "$(GREEN)Running application locally with config override..."
-	@if [ ! -f config/application.yml ]; then \
-		echo "$(YELLOW)Warning: config/application.yml not found, using defaults"; \
-	fi
-	./gradlew bootRun -Dspring.config.additional-location=file:config/application.yml
-
 rebuild-app:
 	@echo "$(GREEN)Rebuilding and ReStarting Project..."
 	docker compose stop app
 	@$(MAKE) build
 	docker compose up -d app --remove-orphans --build
-# Создать папку для данных БД с правильными правами (нужно один раз перед первым запуском)
+
+
+# --- Деплой на VPS ---
+# Использование: make deploy HOST=user@your-vps.com
+deploy: build
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make deploy HOST=user@vps.com"; exit 1; fi
+	ssh $(HOST) "mkdir -p ~/ts-wc-scores"
+	rsync -avz --exclude='.git' --exclude='data/' --exclude='build/' \
+		--exclude='.gradle/' --exclude='*.iml' \
+		. $(HOST):~/ts-wc-scores/
+	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down && docker compose up -d --build"
+	@echo "✅ Deployed to $(HOST)"
+
+# --- Синхронизация БД ---
+
+# Отправить локальную БД на VPS (перезаписывает данные на хосте!)
+# Использование: make db-push HOST=user@your-vps.com
+db-push:
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-push HOST=user@vps.com"; exit 1; fi
+	@echo "⚠️  Это перезапишет БД на сервере. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
+	@echo "📦 Создаём дамп локальной БД..."
+	docker compose exec postgres pg_dump -U wc_user wc_scores > /tmp/wc_scores_dump.sql
+	@echo "🚀 Отправляем на $(HOST)..."
+	scp /tmp/wc_scores_dump.sql $(HOST):/tmp/wc_scores_dump.sql
+	ssh $(HOST) "cd ~/ts-wc-scores && \
+		docker compose exec -T postgres psql -U wc_user -d wc_scores < /tmp/wc_scores_dump.sql"
+	@echo "✅ БД отправлена на сервер"
+
+# Забрать БД с VPS на локальную машину (перезаписывает локальные данные!)
+# Использование: make db-pull HOST=user@your-vps.com
+db-pull:
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-pull HOST=user@vps.com"; exit 1; fi
+	@echo "⚠️  Это перезапишет локальную БД. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
+	@echo "📦 Создаём дамп БД на сервере..."
+	ssh $(HOST) "cd ~/ts-wc-scores && \
+		docker compose exec -T postgres pg_dump -U wc_user wc_scores" > /tmp/wc_scores_dump.sql
+	@echo "📥 Восстанавливаем локально..."
+	docker compose exec -T postgres psql -U wc_user -d wc_scores < /tmp/wc_scores_dump.sql
+	@echo "✅ БД получена с сервера"
+
+# Сделать бэкап БД локально в файл с датой
+db-backup:
+	@mkdir -p backups
+	docker compose exec -T postgres pg_dump -U wc_user wc_scores \
+		> backups/wc_scores_$$(date +%Y%m%d_%H%M%S).sql
+	@echo "✅ Backup saved to backups/"
+
+# Создать папку данных с правильными правами (один раз перед первым запуском)
 init-data:
 	mkdir -p data/postgres
 	sudo chown -R 999:999 data/postgres
 	@echo "✅ data/postgres ready"
+
+# Просмотр логов
+logs:
+	docker compose logs -f app
+

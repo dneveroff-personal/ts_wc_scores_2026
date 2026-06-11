@@ -131,3 +131,18 @@ src/main/java/com/tswcscores/
 
 > При переносе на другую машину копируй через sudo:
 bashsudo cp -r data/postgres /destination/
+
+## ДЕплой на VPS
+
+# Один раз на VPS
+scp scripts/setup-vps.sh user@vps.com:~/ && ssh user@vps.com "bash setup-vps.sh"
+# Заполнить токены на VPS
+ssh user@vps.com "nano ~/ts-wc-scores/.env"
+
+# Деплой (с локальной машины, после каждого изменения)
+make deploy HOST=user@vps.com
+
+# Синхронизация БД
+make db-push HOST=user@vps.com   # локальная → VPS
+make db-pull HOST=user@vps.com   # VPS → локальная
+make db-backup                    # локальный бэкап в папку backups/

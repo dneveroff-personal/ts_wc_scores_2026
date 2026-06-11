@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -112,11 +113,13 @@ public class WcPredictBot extends TelegramLongPollingBot {
             case "/start", "/register" -> handleRegister(chatId, tgUser);
             case "/matches"            -> handleMatches(chatId, tgUser.getId());
             case "/predict"            -> handlePredict(chatId, tgUser.getId(), text);
-            case "/mypredictions"      -> handleMyPredictions(chatId, tgUser.getId());
-            case "/leaderboard"        -> handleLeaderboard(chatId, text);
-            case "/help"               -> sendText(chatId, BotMessageBuilder.help(BOT_VERSION));
+            case "/mypredictions", "📋 мои прогнозы" -> handleMyPredictions(chatId, tgUser.getId());
+            case "/leaderboard", "🏆 рейтинг" -> handleLeaderboard(chatId, text);
+            case "/help", "❓ помощь" -> sendText(chatId, BotMessageBuilder.help(BOT_VERSION));
             case "/sync"               -> handleSync(chatId);
             case "/calcscore"          -> handleCalcScore(chatId);
+            // Текстовые кнопки ReplyKeyboard
+            case "⚽ матчи"         -> handleMatches(chatId, tgUser.getId());
             default -> {
                 if (!isGroup) sendText(chatId, "Не понял команду. Используй /help");
             }
@@ -182,7 +185,8 @@ public class WcPredictBot extends TelegramLongPollingBot {
             groupService.registerGroup(chatId, null); // уже должна быть, просто ensure
         }
 
-        sendText(chatId, exists ? BotMessageBuilder.alreadyRegistered() : BotMessageBuilder.welcome(user));
+        String replyText = exists ? BotMessageBuilder.alreadyRegistered() : BotMessageBuilder.welcome(user);
+        sendTextWithKeyboard(chatId, replyText, InlineKeyboardFactory.mainMenuKeyboard());
     }
 
     private void handleMatches(Long chatId, Long telegramId) {
@@ -285,6 +289,20 @@ public class WcPredictBot extends TelegramLongPollingBot {
 
     public void sendNotification(Long telegramId, String htmlText) {
         sendText(telegramId, htmlText);
+    }
+
+    private void sendTextWithKeyboard(Long chatId, String text, ReplyKeyboardMarkup keyboard) {
+        try {
+            execute((org.telegram.telegrambots.meta.api.methods.BotApiMethod<?>)
+                    SendMessage.builder()
+                            .chatId(chatId.toString())
+                            .text(text)
+                            .parseMode("HTML")
+                            .replyMarkup(keyboard)
+                            .build());
+        } catch (TelegramApiException e) {
+            log.error("Failed to send message with keyboard to chatId={}: {}", chatId, e.getMessage());
+        }
     }
 
     private void sendText(Long chatId, String text) {

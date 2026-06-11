@@ -3,7 +3,11 @@ package com.tswcscores.bot.keyboard;
 import com.tswcscores.entity.Match;
 import com.tswcscores.entity.Prediction;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -63,5 +67,25 @@ public class InlineKeyboardFactory {
             rows.add(List.of(btn));
         }
         return InlineKeyboardMarkup.builder().keyboard(rows).build();
+    }
+
+    /**
+     * Постоянная клавиатура с основными командами — появляется вместо обычной клавиатуры телефона.
+     * Отправляется один раз при /register или /start.
+     */
+    public static ReplyKeyboardMarkup mainMenuKeyboard() {
+        KeyboardRow row1 = new KeyboardRow();
+        row1.add(new KeyboardButton("⚽ Матчи"));
+        row1.add(new KeyboardButton("📋 Мои прогнозы"));
+
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add(new KeyboardButton("🏆 Рейтинг"));
+        row2.add(new KeyboardButton("❓ Помощь"));
+
+        return ReplyKeyboardMarkup.builder()
+                .keyboard(java.util.List.of(row1, row2))
+                .resizeKeyboard(true)      // компактный размер кнопок
+                .isPersistent(true)        // не скрывается автоматически
+                .build();
     }
 }

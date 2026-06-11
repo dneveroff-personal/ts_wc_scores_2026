@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "1.0.4"
+version = "1.1.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -19,7 +19,7 @@ repositories {
     mavenCentral()
 }
 
-val telegramBotsVersion = "6.9.7.1"
+val telegramBotsVersion = "6.8.0"
 
 dependencies {
     // Spring Boot
