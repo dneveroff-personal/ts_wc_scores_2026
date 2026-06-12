@@ -43,5 +43,3 @@ predictions:
 logging:
   level:
     com.tswcscores: DEBUG
-    org.telegram: INFO
-admin-chat-id: ${TELEGRAM_ADMIN_CHAT_ID:0}

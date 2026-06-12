@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "2.0.4"
+version = "3.0.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -19,7 +19,7 @@ repositories {
     mavenCentral()
 }
 
-val telegramBotsVersion = "10.0.0"
+
 
 dependencies {
     // Spring Boot
@@ -39,9 +39,8 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
 
-    // Telegram Bots 10.x — без рекламы, Jackson и Jakarta идут транзитивно
-    implementation("org.telegram:telegrambots-longpolling:$telegramBotsVersion")
-    implementation("org.telegram:telegrambots-client:$telegramBotsVersion")
+    // OkHttp — для своего Telegram HTTP клиента
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Lombok (для Java-классов, если останутся)
     compileOnly("org.projectlombok:lombok")

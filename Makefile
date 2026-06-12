@@ -1,5 +1,9 @@
 .PHONY: build deploy db-push db-pull db-backup clean up-clean up down run-local rebuild-app status logs
 
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RESET := \033[0m
+
 # --- Локальная сборка ---
 build:
 	@echo "$(GREEN)Building Project..."
@@ -55,11 +59,11 @@ db-push:
 	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-push HOST=root@89.125.248.168"; exit 1; fi
 	@echo "⚠️  Это перезапишет БД на сервере. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
 	@echo "📦 Создаём дамп локальной БД..."
-	docker compose exec postgres pg_dump -U wc_user wc_scores > /tmp/wc_scores_dump.sql
+	docker compose exec -T postgres pg_dump -U wc_user --clean --if-exists --no-owner -Fc wc_scores > /tmp/wc_scores_dump.dump
 	@echo "🚀 Отправляем на $(HOST)..."
-	scp /tmp/wc_scores_dump.sql $(HOST):/tmp/wc_scores_dump.sql
+	scp /tmp/wc_scores_dump.dump $(HOST):/tmp/wc_scores_dump.dump
 	ssh $(HOST) "cd ~/ts-wc-scores && \
-		docker compose exec -T postgres psql -U wc_user -d wc_scores < /tmp/wc_scores_dump.sql"
+		cat /tmp/wc_scores_dump.dump | docker compose exec -T postgres pg_restore -U wc_user -d wc_scores --clean --if-exists --no-owner || true"
 	@echo "✅ БД отправлена на сервер"
 
 # Забрать БД с VPS на локальную машину (перезаписывает локальные данные!)
@@ -69,9 +73,9 @@ db-pull:
 	@echo "⚠️  Это перезапишет локальную БД. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
 	@echo "📦 Создаём дамп БД на сервере..."
 	ssh $(HOST) "cd ~/ts-wc-scores && \
-		docker compose exec -T postgres pg_dump -U wc_user wc_scores" > /tmp/wc_scores_dump.sql
+		docker compose exec -T postgres pg_dump -U wc_user --clean --if-exists --no-owner -Fc wc_scores" > /tmp/wc_scores_dump.dump
 	@echo "📥 Восстанавливаем локально..."
-	docker compose exec -T postgres psql -U wc_user -d wc_scores < /tmp/wc_scores_dump.sql
+	cat /tmp/wc_scores_dump.dump | docker compose exec -T postgres pg_restore -U wc_user -d wc_scores --clean --if-exists --no-owner
 	@echo "✅ БД получена с сервера"
 
 # Сделать бэкап БД локально в файл с датой
