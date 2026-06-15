@@ -18,6 +18,11 @@ public class TelegramUpdate {
     @JsonProperty("callback_query")
     private TelegramCallbackQuery callbackQuery;
 
+    // Inline query — приходит когда пользователь нажимает switchInlineQueryCurrentChat кнопку.
+    // Мы его не обрабатываем, но парсим чтобы не падало с ошибкой десериализации.
+    @JsonProperty("inline_query")
+    private Object inlineQuery;
+
     public boolean hasMessage() {
         return message != null 
             && message.getText() != null 

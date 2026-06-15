@@ -13,8 +13,8 @@ if ! command -v docker &> /dev/null; then
     exit 0
 fi
 
-# Docker Compose (check both new and old syntax)
-if ! docker compose version &> /dev/null && ! docker-compose version &> /dev/null; then
+# Docker Compose plugin
+if ! docker compose version &> /dev/null; then
     sudo apt-get update && sudo apt-get install -y docker-compose-plugin
 fi
 

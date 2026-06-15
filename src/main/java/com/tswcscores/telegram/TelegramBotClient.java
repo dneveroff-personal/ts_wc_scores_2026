@@ -28,7 +28,11 @@ public class TelegramBotClient {
     private final String baseUrl;
 
     public TelegramBotClient(@Value("${telegram.bot.token}") String token) {
-        this.baseUrl = "https://api.telegram.org/bot" + token;
+        this(token, "https://api.telegram.org/bot" + token);
+    }
+
+    public TelegramBotClient(String token, String baseUrl) {
+        this.baseUrl = baseUrl;
     }
 
     // --- Отправка сообщений ---
@@ -64,6 +68,19 @@ public class TelegramBotClient {
                         "keyboard", keyboard,
                         "resize_keyboard", true,
                         "is_persistent", true
+                )
+        ));
+    }
+
+    public void sendMessageWithForceReplyAndPlaceholder(long chatId, String text, String inputFieldPlaceholder) {
+        post("sendMessage", Map.of(
+                "chat_id", chatId,
+                "text", text,
+                "parse_mode", "HTML",
+                "reply_markup", Map.of(
+                        "force_reply", true,
+                        "selective", false,
+                        "input_field_placeholder", inputFieldPlaceholder
                 )
         ));
     }

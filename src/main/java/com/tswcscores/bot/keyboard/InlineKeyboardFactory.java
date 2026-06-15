@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 public class InlineKeyboardFactory {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd.MM HH:mm");
-    public static final String PREDICT_PREFIX = "predict:";
+    public static final String PREDICT_PREFIX = "/predict";
 
     /** Inline-клавиатура со списком матчей. Возвращает структуру для Telegram API JSON. */
     public static List<List<Map<String, String>>> matchListKeyboard(
@@ -37,9 +37,12 @@ public class InlineKeyboardFactory {
                         homeFlag, homeName, awayName, awayFlag,
                         m.getUtcDate().format(FMT));
 
+            // switchInlineQueryCurrentChat вставляет "/predict {id} " в поле ввода пользователя.
+            // Требует включённого Inline Mode в BotFather:
+            // @BotFather → /mybots → Bot Settings → Inline Mode → Turn On
             rows.add(List.of(Map.of(
                     "text", label,
-                    "callback_data", PREDICT_PREFIX + m.getId()
+                    "switch_inline_query_current_chat", PREDICT_PREFIX + " " + m.getId() + " "
             )));
         }
         return rows;

@@ -67,10 +67,7 @@ public class WcPredictBot {
     // --- Точка входа ---
 
     public void handleUpdate(TelegramUpdate update) {
-        if (update.hasCallbackQuery()) {
-            handleCallback(update.getCallbackQuery());
-            return;
-        }
+        // inline_query и callback_query игнорируем — кнопки используют switchInlineQueryCurrentChat
         if (!update.hasMessage()) return;
 
         TelegramUpdate.TelegramMessage msg = update.getMessage();
@@ -114,37 +111,6 @@ public class WcPredictBot {
             case "🏆 рейтинг"       -> handleLeaderboard(chatId, text);
             case "❓ помощь"        -> telegram.sendMessage(chatId, BotMessageBuilder.help(BOT_VERSION));
             default -> { if (!isGroup) telegram.sendMessage(chatId, "Не понял команду. Используй /help"); }
-        }
-    }
-
-    // --- Callback ---
-
-    private void handleCallback(TelegramUpdate.TelegramCallbackQuery callback) {
-        String data = callback.getData();
-        Long chatId = callback.getChatId();
-        Long telegramId = callback.getFrom().getId();
-        boolean isGroup = chatId != null && chatId < 0;
-
-        if (data == null || !data.startsWith(InlineKeyboardFactory.PREDICT_PREFIX)) return;
-
-        Optional<User> userOpt = userService.findByTelegramId(telegramId);
-        if (userOpt.isEmpty()) {
-            telegram.answerCallbackQuery(callback.getId(), "Сначала зарегистрируйся: /register", true);
-            return;
-        }
-
-        String matchIdStr = data.substring(InlineKeyboardFactory.PREDICT_PREFIX.length());
-        if (isGroup) {
-            telegram.answerCallbackQuery(callback.getId(),
-                    "Напиши боту в личку: /predict " + matchIdStr + " 2 1", false);
-            telegram.sendMessage(telegramId,
-                    "⚽ Скопируй и замени цифры на свой прогноз:\n\n" +
-                    "<code>/predict " + matchIdStr + " 2 1</code>");
-        } else {
-            telegram.answerCallbackQuery(callback.getId(), "Введи счёт 👇", false);
-            telegram.sendMessage(chatId,
-                    "⚽ Замени <b>2 1</b> на свой прогноз:\n\n" +
-                    "<code>/predict " + matchIdStr + " 2 1</code>");
         }
     }
 
