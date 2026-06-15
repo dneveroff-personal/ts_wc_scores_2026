@@ -9,10 +9,10 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "3.0.4"
+version = "3.0.5"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_17
 }
 
 repositories {
@@ -50,7 +50,6 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 
     // Dotenv for local development
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
@@ -67,7 +66,7 @@ springBoot {
 tasks.withType<KotlinCompile> {
     kotlinOptions {
         freeCompilerArgs += "-Xjsr305=strict"
-        jvmTarget = "21"
+        jvmTarget = "17"
     }
 }
 

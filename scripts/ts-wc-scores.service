@@ -1,0 +1,32 @@
+[Unit]
+Description=TS WC Scores 2026 Telegram Bot
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/ts-wc-scores
+
+# Загружаем переменные из .env файла
+EnvironmentFile=/root/ts-wc-scores/.env
+
+# DB_URL указывает на localhost т.к. PostgreSQL проброшен на 127.0.0.1:5432
+Environment="DB_URL=jdbc:postgresql://127.0.0.1:5432/wc_scores"
+Environment="DB_USER=wc_user"
+Environment="DB_PASSWORD=wc_pass"
+
+ExecStart=/usr/bin/java -Xmx200m -jar /root/ts-wc-scores/app.jar
+ExecStop=/bin/kill -TERM $MAINPID
+
+# Перезапуск при падении через 10 секунд
+Restart=on-failure
+RestartSec=10
+
+# Логи через journald (смотреть: journalctl -u ts-wc-scores -f)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ts-wc-scores
+
+[Install]
+WantedBy=multi-user.target

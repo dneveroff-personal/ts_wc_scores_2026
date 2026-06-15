@@ -1,148 +1,156 @@
-# TS WC Scores 2026 ⚽
+# TS WC Scores 2026 ⚽🏆
 
 Telegram-бот для прогнозов на матчи Чемпионата мира по футболу 2026.
-Работает в групповом чате и в личке.
+Участники группы делают ставки на счёт, получают очки и соревнуются в таблице лидеров.
 
-## Стек технологий
+## Стек
 
-- Java 21 + Kotlin, Spring Boot 3.3
-- Gradle 9.4.1 (Kotlin DSL)
-- Spring Data JPA + PostgreSQL
-- Spring Scheduler (cron jobs)
-- Spring WebClient (Football-Data API)
-- Telegram Bots API (Java)
-- Flyway (SQL-миграции БД)
-- Docker / Docker Compose
-- JUnit 5 + Mockito (тесты)
+| Технология | Назначение |
+|---|---|
+| Java 21 + Kotlin, Spring Boot 3.3 | Основа приложения |
+| Spring Data JPA + PostgreSQL | Хранение данных |
+| Spring Scheduler | Загрузка расписания по крону |
+| Spring WebClient | Запросы к Football-Data API |
+| OkHttp (свой Telegram клиент) | Бот без сторонних библиотек |
+| Flyway | Миграции БД |
+| Docker Compose | Запуск PostgreSQL |
+| JUnit 5 + Mockito | Тесты логики подсчёта очков |
 
 ## Команды бота
 
 | Команда | Описание |
-|---------|----------|
+|---|---|
 | `/register` | Зарегистрироваться в игре |
-| `/matches` | Матчи ближайших 24 часов с кнопками прогноза |
+| `/matches` | Матчи ближайших 24 часов |
 | `/predict {id} {гол1} {гол2}` | Сделать прогноз (`/predict 42 2 1`) |
 | `/mypredictions` | Мои прогнозы и очки |
-| `/leaderboard` | Таблица лидеров |
+| `/leaderboard` | Таблица лидеров группы |
+| `/leaderboard global` | Общий рейтинг всех участников |
+| `/sync` | Принудительная синхронизация матчей |
+| `/calcscore` | Принудительный подсчёт очков |
+| `/help` | Справка |
+
+Кнопки в `/matches` вставляют `/predict {id} ` в поле ввода — пользователь добавляет только счёт.
+Бот автоматически напоминает за час до матча тем, кто не сделал прогноз.
 
 ## Система очков
 
 | Результат | Очки |
-|-----------|------|
-| Точный счёт | 5    |
-| Правильный исход | 2    |
-| + верная разница голов | +1   |
+|---|---|
+| ⭐ Точный счёт | 5 |
+| ✅ Правильный исход (победитель / ничья) | 2 |
+| 🎯 + верная разница голов | +1 |
+
+## Архитектура
+
+```
+football-data.org API
+        │
+        ▼ (каждые 2 часа)
+┌─────────────────────────────────────────┐
+│           Spring Boot App               │
+│                                         │
+│  FootballDataService → MatchRepository  │
+│  ScoringService      → PredictionRepo   │
+│  GroupService        → UserRepository   │
+│  AppScheduler (cron)                    │
+│                                         │
+│  TelegramUpdatePoller ←──────────────── │◄── Telegram API
+│  TelegramBotClient   ──────────────────►│──► Telegram API
+│  WcPredictBot (логика команд)           │
+└─────────────────────────────────────────┘
+        │
+        ▼
+   PostgreSQL (Docker)
+```
 
 ## Быстрый старт
 
-### 1. Подготовка
+### Требования
+- Java 21+
+- Docker + Docker Compose
+- Токен Telegram бота ([@BotFather](https://t.me/BotFather))
+- API ключ [football-data.org](https://www.football-data.org/client/register) (бесплатный)
+
+### Локальный запуск
 
 ```bash
-# Создай бота в @BotFather и получи токен
-# Получи API ключ на https://www.football-data.org/client/register
-
-# Скопировать .env и заполнить токенами
+# 1. Клонировать и настроить
 cp .env.example .env
-# Заполни .env своими токенами
+nano .env   # заполнить токены
 
-# config/application.yml уже содержит placeholder'ы и подхватывает значения из .env
-# При необходимости можно переопределить конкретные значения в config/application.yml
+# 2. Запустить PostgreSQL
+make up
+
+# 3. Запустить приложение
+./gradlew bootRun
 ```
 
-### 2. Запуск через Docker Compose
+### Деплой на VPS
 
 ```bash
-# Docker использует config/application.yml (который подхватывает переменные из .env)
-docker-compose up -d
+# Один раз — настройка сервера (устанавливает Java, Docker, rsync)
+scp scripts/setup-vps.sh root@YOUR_IP:~/
+ssh root@YOUR_IP "bash setup-vps.sh"
+ssh root@YOUR_IP "nano ~/ts-wc-scores/.env"   # заполнить токены
+
+# Деплой (после каждого изменения)
+make deploy HOST=root@YOUR_IP
+
+# Логи на сервере
+make logs-vps HOST=root@YOUR_IP
 ```
 
-### 3. Запуск локально (для разработки)
+### Синхронизация БД
 
 ```bash
-# Запустить только БД
-docker-compose up -d postgres
-
-# Запустить приложение (использует config/application.yml)
-make run-local
-# или вручную:
-./gradlew bootRun -Dspring.config.additional-location=file:config/application.yml
+make db-pull HOST=root@YOUR_IP   # забрать БД с сервера
+make db-push HOST=root@YOUR_IP   # отправить локальную на сервер
+make db-backup                    # локальный бэкап в папку backups/
 ```
 
-### 4. Тесты
+## Переменные окружения
 
-```bash
-./gradlew test
+```env
+TELEGRAM_BOT_TOKEN=        # токен от @BotFather
+TELEGRAM_BOT_USERNAME=     # username бота без @
+TELEGRAM_ADMIN_CHAT_ID=    # твой Telegram ID (уведомления о старте/стопе)
+FOOTBALL_DATA_TOKEN=       # ключ от football-data.org
 ```
 
 ## Структура проекта
 
 ```
 src/main/java/com/tswcscores/
-├── TsWcScoresApplication.java
 ├── bot/
-│   ├── WcPredictBot.java          ← главный класс бота
-│   ├── handler/
-│   │   └── BotMessageBuilder.java ← форматирование сообщений
-│   └── keyboard/
-│       └── InlineKeyboardFactory.java ← кнопки
+│   ├── WcPredictBot.java              ← логика всех команд
+│   ├── handler/BotMessageBuilder.java ← форматирование сообщений
+│   └── keyboard/InlineKeyboardFactory.java
 ├── config/
-│   ├── AppConfig.java             ← WebClient bean
-│   └── ScoringProperties.java     ← настройки очков
-├── entity/
-│   ├── User.java
-│   ├── Match.java
-│   ├── Team.java
-│   └── Prediction.java
-├── repository/
-│   ├── UserRepository.java
-│   ├── MatchRepository.java
-│   ├── TeamRepository.java
-│   └── PredictionRepository.java
-├── service/
-│   ├── ScoringService.java        ← интерфейс
-│   └── impl/
-│       ├── ScoringServiceImpl.java  ← алгоритм подсчёта
-│       ├── FootballDataService.java ← синхронизация с API
-│       ├── PredictionService.java   ← прогнозы
-│       └── UserService.java
-├── scheduler/
-│   └── AppScheduler.java          ← все cron jobs
-├── dto/
-│   ├── FootballDataMatchesResponse.java
-│   └── ScoringResult.java
-└── exception/
-    ├── DeadlinePassedException.java
-    └── MatchNotFoundException.java
+│   ├── AppConfig.java                 ← WebClient бин
+│   ├── ScoringProperties.java         ← настройки очков
+│   └── TelegramBotConfig.java         ← регистрация команд, уведомления
+├── entity/        User, Match, Team, Prediction, ChatGroup, UserGroupPoints
+├── repository/    JPA репозитории
+├── service/impl/
+│   ├── FootballDataService.java       ← синхронизация с API
+│   ├── ScoringServiceImpl.java        ← алгоритм подсчёта очков
+│   ├── PredictionService.java         ← приём прогнозов
+│   ├── UserService.java
+│   └── GroupService.java              ← групповой рейтинг
+├── scheduler/AppScheduler.java        ← все cron задачи
+└── telegram/
+    ├── TelegramBotClient.java         ← HTTP клиент (OkHttp, без рекламы)
+    ├── TelegramUpdatePoller.java      ← long polling
+    └── TelegramUpdate.java            ← DTO апдейтов
+
+scripts/
+├── ts-wc-scores.service   ← systemd сервис для VPS
+└── setup-vps.sh           ← первоначальная настройка сервера
 ```
 
-## Добавить бота в группу
+## Заметки
 
-1. Добавь бота в Telegram-группу
-2. Дай боту права на чтение сообщений (отключи режим Privacy Mode в @BotFather)
-3. Участники делают `/register` в личке, затем `/predict` через кнопки из `/matches`
-
-## API Football-Data
-Используется эндпоинт `/v4/competitions/WC/matches`.
-Синхронизация каждые 30 минут, подсчёт очков — каждые 30 минут.
-
-> 📌 Код соревнования `WC` может измениться после объявления ЧМ 2026.
-> Проверь актуальный код на [football-data.org](https://www.football-data.org/documentation/quickstart).
-
-> При переносе на другую машину копируй через sudo:
-bashsudo cp -r data/postgres /destination/
-
-## ДЕплой на VPS
-
-# Один раз на VPS
-+ scp scripts/setup-vps.sh root@89.125.248.168:~/ && ssh root@89.125.248.168 "bash setup-vps.sh"
-
-# Заполнить токены на VPS
-+ ssh root@89.125.248.168 "nano ~/ts-wc-scores/.env"
-
-# Деплой (с локальной машины, после каждого изменения)
-make deploy HOST=root@89.125.248.168
-
-# Синхронизация БД
-make db-push HOST=root@89.125.248.168   # локальная → VPS
-make db-pull HOST=root@89.125.248.168   # VPS → локальная
-make db-backup                    # локальный бэкап в папку backups/
+- **Inline Mode** в BotFather должен быть включён для кнопок с автозаполнением `/predict`
+- Код соревнования `WC` в `application.yml` — проверь актуальность на [football-data.org](https://www.football-data.org/documentation/quickstart)
+- Данные PostgreSQL хранятся в `./data/postgres` — копируй эту папку при переносе на новый сервер

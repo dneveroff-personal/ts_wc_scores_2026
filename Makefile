@@ -1,96 +1,111 @@
-.PHONY: build deploy db-push db-pull db-backup clean up-clean up down run-local rebuild-app status logs
+.PHONY: build deploy db-push db-pull db-backup init-data logs status restart
 
-GREEN := \033[0;32m
+GREEN  := \033[0;32m
 YELLOW := \033[0;33m
-RESET := \033[0m
+RESET  := \033[0m
 
-# --- Локальная сборка ---
+# =========================================================
+# Локальная разработка
+# =========================================================
+
 build:
-	@echo "$(GREEN)Building Project..."
-	./gradlew clean build
-	@echo "✅ Build complete: build/libs/*.jar"
+	@echo "$(GREEN)Building...$(RESET)"
+	./gradlew clean build -x test
+	@echo "✅ Build complete"
 
+# Локальный запуск (PostgreSQL через docker-compose, приложение через gradle)
 up:
-	@echo "$(GREEN)Starting Project..."
-	@$(MAKE) build
-	docker compose -f docker-compose.yml up -d --remove-orphans --build
+	docker compose up -d
+	@echo "✅ PostgreSQL started. Run: ./gradlew bootRun"
 
 down:
-	docker compose -f docker-compose.yml down --remove-orphans
+	docker compose down --remove-orphans
 
-clean:
-	@echo "$(YELLOW)Полная очистка..."
-	./gradlew clean
-	rm -rf */build/ .gradle/ build/
-	docker compose -f docker-compose.yml down -v --remove-orphans
-	docker rmi $$(docker images "dn-quest/*:dev" -q) 2>/dev/null || true
-	@echo "$(GREEN)Очистка завершена!$(RESET)"
-
-rebuild-app:
-	@echo "$(GREEN)Rebuilding and ReStarting Project..."
-	docker compose stop app
-	@$(MAKE) build
-	docker compose up -d app --remove-orphans --build
+logs:
+	docker compose logs -f postgres
 
 status:
-	@echo "$(YELLOW)Containers Status"
 	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-# --- Деплой на VPS ---
-# Копируем только собранный jar + docker-compose + конфиги (~15 MB вместо 105 MB)
-# Использование: make deploy HOST=user@your-vps.com
+# =========================================================
+# Деплой на VPS
+# Использование: make deploy HOST=root@89.125.248.168
+# =========================================================
+
 deploy: build
-	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make deploy HOST=root@89.125.248.168"; exit 1; fi
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make deploy HOST=root@IP"; exit 1; fi
 	$(eval JAR := $(shell ls build/libs/ts-wc-scores-*.jar | grep -v plain | head -1))
-	@if [ -z "$(JAR)" ]; then echo "❌ JAR not found in build/libs/"; exit 1; fi
+	@if [ -z "$(JAR)" ]; then echo "❌ JAR not found"; exit 1; fi
 	$(eval VERSION := $(shell echo $(JAR) | grep -oP '\d+\.\d+\.\d+'))
-	@echo "📦 Deploying version $(VERSION) to $(HOST)..."
+	@echo "📦 Deploying v$(VERSION) to $(HOST)..."
 	ssh $(HOST) "mkdir -p ~/ts-wc-scores/scripts"
 	rsync -avz $(JAR) $(HOST):~/ts-wc-scores/app.jar
-	rsync -avz docker-compose.yml Dockerfile scripts/setup-vps.sh $(HOST):~/ts-wc-scores/
-	ssh $(HOST) "cd ~/ts-wc-scores && docker compose down --remove-orphans && docker compose up -d --build"
-	@echo "✅ Version $(VERSION) deployed to $(HOST)"
+	rsync -avz docker-compose.yml scripts/ $(HOST):~/ts-wc-scores/scripts/
+	rsync -avz scripts/setup-vps.sh $(HOST):~/ts-wc-scores/
+	# Устанавливаем systemd сервис
+	ssh $(HOST) "cp ~/ts-wc-scores/scripts/ts-wc-scores.service /etc/systemd/system/ \
+		&& systemctl daemon-reload \
+		&& systemctl enable ts-wc-scores"
+	# Убеждаемся что PostgreSQL запущен
+	ssh $(HOST) "cd ~/ts-wc-scores && docker compose up -d"
+	# Перезапускаем приложение
+	ssh $(HOST) "systemctl restart ts-wc-scores"
+	@echo "✅ v$(VERSION) deployed! Logs: make logs-vps HOST=$(HOST)"
 
-# --- Синхронизация БД ---
+# Логи приложения на VPS
+logs-vps:
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make logs-vps HOST=root@IP"; exit 1; fi
+	ssh $(HOST) "journalctl -u ts-wc-scores -f"
 
-# Отправить локальную БД на VPS (перезаписывает данные на хосте!)
-# Использование: make db-push HOST=user@your-vps.com
-db-push:
-	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-push HOST=root@89.125.248.168"; exit 1; fi
-	@echo "⚠️  Это перезапишет БД на сервере. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
-	@echo "📦 Создаём дамп локальной БД..."
-	docker compose exec -T postgres pg_dump -U wc_user --clean --if-exists --no-owner -Fc wc_scores > /tmp/wc_scores_dump.dump
-	@echo "🚀 Отправляем на $(HOST)..."
-	scp /tmp/wc_scores_dump.dump $(HOST):/tmp/wc_scores_dump.dump
-	ssh $(HOST) "cd ~/ts-wc-scores && \
-		cat /tmp/wc_scores_dump.dump | docker compose exec -T postgres pg_restore -U wc_user -d wc_scores --clean --if-exists --no-owner || true"
-	@echo "✅ БД отправлена на сервер"
+# Статус на VPS
+status-vps:
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make status-vps HOST=root@IP"; exit 1; fi
+	ssh $(HOST) "systemctl status ts-wc-scores && docker ps"
 
-# Забрать БД с VPS на локальную машину (перезаписывает локальные данные!)
-# Использование: make db-pull HOST=user@your-vps.com
+# =========================================================
+# Синхронизация БД
+# =========================================================
+
+# Забрать БД с VPS
 db-pull:
-	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-pull HOST=root@89.125.248.168"; exit 1; fi
-	@echo "⚠️  Это перезапишет локальную БД. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
-	@echo "📦 Создаём дамп БД на сервере..."
-	ssh $(HOST) "cd ~/ts-wc-scores && \
-		docker compose exec -T postgres pg_dump -U wc_user --clean --if-exists --no-owner -Fc wc_scores" > /tmp/wc_scores_dump.dump
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-pull HOST=root@IP"; exit 1; fi
+	@echo "⚠️  Перезапишет локальную БД. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
+	@echo "📦 Дамп с сервера..."
+	ssh $(HOST) "cd ~/ts-wc-scores \
+		&& docker compose exec -T postgres pg_dump -U wc_user --clean --if-exists --no-owner -Fc wc_scores" \
+		> /tmp/wc_scores_dump.dump
 	@echo "📥 Восстанавливаем локально..."
-	cat /tmp/wc_scores_dump.dump | docker compose exec -T postgres pg_restore -U wc_user -d wc_scores --clean --if-exists --no-owner
-	@echo "✅ БД получена с сервера"
+	docker compose exec -T postgres pg_restore -U wc_user -d wc_scores \
+		--clean --if-exists --no-owner -Fc /tmp/wc_scores_dump.dump || true
+	@echo "✅ Готово"
 
-# Сделать бэкап БД локально в файл с датой
+# Отправить локальную БД на VPS
+db-push:
+	@if [ -z "$(HOST)" ]; then echo "❌ Usage: make db-push HOST=root@IP"; exit 1; fi
+	@echo "⚠️  Перезапишет БД на сервере. Продолжить? [y/N]" && read ans && [ "$$ans" = "y" ]
+	@echo "📦 Дамп локальной БД..."
+	docker compose exec -T postgres pg_dump -U wc_user --clean --if-exists --no-owner -Fc wc_scores \
+		> /tmp/wc_scores_dump.dump
+	@echo "🚀 Отправляем..."
+	scp /tmp/wc_scores_dump.dump $(HOST):/tmp/wc_scores_dump.dump
+	ssh $(HOST) "cd ~/ts-wc-scores \
+		&& docker compose exec -T postgres pg_restore -U wc_user -d wc_scores \
+		--clean --if-exists --no-owner -Fc /tmp/wc_scores_dump.dump || true"
+	@echo "✅ Готово"
+
+# Локальный бэкап с датой
 db-backup:
 	@mkdir -p backups
-	docker compose exec -T postgres pg_dump -U wc_user wc_scores \
-		> backups/wc_scores_$$(date +%Y%m%d_%H%M%S).sql
+	docker compose exec -T postgres pg_dump -U wc_user --no-owner -Fc wc_scores \
+		> backups/wc_scores_$$(date +%Y%m%d_%H%M%S).dump
 	@echo "✅ Backup saved to backups/"
 
-# Создать папку данных с правильными правами (один раз перед первым запуском)
+# =========================================================
+# Первоначальная настройка
+# =========================================================
+
+# Создать папку данных с правильными правами (один раз)
 init-data:
 	mkdir -p data/postgres
 	sudo chown -R 999:999 data/postgres
 	@echo "✅ data/postgres ready"
-
-## SHow last 100 rows of set CONTAINER (C)
-logs:
-	docker logs $(C) --tail=100
