@@ -1,4 +1,4 @@
-# Только PostgreSQL в Docker — приложение запускается напрямую через systemd
+# Только для локальной разработки — на VPS PostgreSQL установлен напрямую
 services:
   postgres:
     image: postgres:16-alpine
@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: wc_user
       POSTGRES_PASSWORD: wc_pass
     ports:
-      - "127.0.0.1:5432:5432"   # только локально — не наружу
+      - "5432:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     healthcheck:

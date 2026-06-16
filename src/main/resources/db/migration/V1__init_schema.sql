@@ -1,7 +1,7 @@
 -- Users: участники прогнозов
 CREATE TABLE users
 (
-    id            BIGSERIAL PRIMARY KEY,
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
     telegram_id   BIGINT      NOT NULL UNIQUE,
     username      VARCHAR(64),
     first_name    VARCHAR(64),
@@ -14,7 +14,7 @@ CREATE TABLE users
 -- Teams: команды турнира
 CREATE TABLE teams
 (
-    id          BIGSERIAL PRIMARY KEY,
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
     external_id INT         NOT NULL UNIQUE,
     name        VARCHAR(100) NOT NULL,
     short_name  VARCHAR(20),
@@ -26,7 +26,7 @@ CREATE TABLE teams
 -- Matches: матчи
 CREATE TABLE matches
 (
-    id                BIGSERIAL PRIMARY KEY,
+    id                BIGINT AUTO_INCREMENT PRIMARY KEY,
     external_id       INT         NOT NULL UNIQUE,
     home_team_id      BIGINT      NOT NULL REFERENCES teams (id),
     away_team_id      BIGINT      NOT NULL REFERENCES teams (id),
@@ -45,7 +45,7 @@ CREATE INDEX idx_match_status ON matches (status);
 -- Predictions: прогнозы пользователей
 CREATE TABLE predictions
 (
-    id            BIGSERIAL PRIMARY KEY,
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id       BIGINT    NOT NULL REFERENCES users (id),
     match_id      BIGINT    NOT NULL REFERENCES matches (id),
     home_score    INT       NOT NULL,

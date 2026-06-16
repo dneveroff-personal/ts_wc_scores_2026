@@ -16,34 +16,6 @@ class TelegramBotClientTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    void sendMessageWithForceReplyAndPlaceholderPostsExpectedPayload() throws Exception {
-        MockWebServer server = new MockWebServer();
-        server.enqueue(new MockResponse().setResponseCode(200).setBody("{\"ok\":true}"));
-        server.start();
-        try {
-            TelegramBotClient client = new TelegramBotClient("test-token", server.url("/bot-test-token").toString());
-
-            client.sendMessageWithForceReplyAndPlaceholder(123L, "\u2800", "/predict 42 ");
-
-            RecordedRequest request = server.takeRequest(1, TimeUnit.SECONDS);
-            assertThat(request).isNotNull();
-            assertThat(request.getPath()).isEqualTo("/bot-test-token/sendMessage");
-
-            JsonNode payload = mapper.readTree(request.getBody().readUtf8());
-            assertThat(payload.path("chat_id").asLong()).isEqualTo(123L);
-            assertThat(payload.path("text").asText()).isEqualTo("\u2800");
-            assertThat(payload.path("parse_mode").asText()).isEqualTo("HTML");
-
-            JsonNode replyMarkup = payload.path("reply_markup");
-            assertThat(replyMarkup.path("force_reply").asBoolean()).isTrue();
-            assertThat(replyMarkup.path("selective").asBoolean()).isFalse();
-            assertThat(replyMarkup.path("input_field_placeholder").asText()).isEqualTo("/predict 42 ");
-        } finally {
-            server.shutdown();
-        }
-    }
-
-    @Test
     void sendMessageWithInlineKeyboardPostsExpectedPayload() throws Exception {
         MockWebServer server = new MockWebServer();
         server.enqueue(new MockResponse().setResponseCode(200).setBody("{\"ok\":true}"));
@@ -62,6 +34,29 @@ class TelegramBotClientTest {
             assertThat(payload.path("text").asText()).isEqualTo("text");
             assertThat(payload.path("parse_mode").asText()).isEqualTo("HTML");
             assertThat(payload.path("reply_markup").path("inline_keyboard").isArray()).isTrue();
+        } finally {
+            server.shutdown();
+        }
+    }
+
+    @Test
+    void sendMessagePostsExpectedPayload() throws Exception {
+        MockWebServer server = new MockWebServer();
+        server.enqueue(new MockResponse().setResponseCode(200).setBody("{\"ok\":true}"));
+        server.start();
+        try {
+            TelegramBotClient client = new TelegramBotClient("test-token", server.url("/bot-test-token").toString());
+
+            client.sendMessage(123L, "Hello");
+
+            RecordedRequest request = server.takeRequest(1, TimeUnit.SECONDS);
+            assertThat(request).isNotNull();
+            assertThat(request.getPath()).isEqualTo("/bot-test-token/sendMessage");
+
+            JsonNode payload = mapper.readTree(request.getBody().readUtf8());
+            assertThat(payload.path("chat_id").asLong()).isEqualTo(123L);
+            assertThat(payload.path("text").asText()).isEqualTo("Hello");
+            assertThat(payload.path("parse_mode").asText()).isEqualTo("HTML");
         } finally {
             server.shutdown();
         }

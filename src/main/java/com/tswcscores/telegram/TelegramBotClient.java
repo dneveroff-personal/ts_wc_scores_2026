@@ -27,8 +27,19 @@ public class TelegramBotClient {
     private final ObjectMapper mapper = new ObjectMapper();
     private final String baseUrl;
 
-    public TelegramBotClient(@Value("${telegram.bot.token}") String token) {
+    public TelegramBotClient(@Value("${telegram.bot.token:}") String token) {
         this.baseUrl = "https://api.telegram.org/bot" + token;
+        log.info("TelegramBotClient initialized with baseUrl: {}", baseUrl);
+    }
+
+    // For tests
+    TelegramBotClient(String token, String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    // Fallback for Spring when @Value cannot be resolved
+    public TelegramBotClient() {
+        this.baseUrl = "";
     }
 
     // --- Отправка сообщений ---
@@ -68,6 +79,19 @@ public class TelegramBotClient {
         ));
     }
 
+    public void sendMessageWithForceReplyAndPlaceholder(long chatId, String text, String placeholder) {
+        post("sendMessage", Map.of(
+                "chat_id", chatId,
+                "text", text,
+                "parse_mode", "HTML",
+                "reply_markup", Map.of(
+                        "force_reply", true,
+                        "selective", false,
+                        "input_field_placeholder", placeholder
+                )
+        ));
+    }
+
     public void answerCallbackQuery(String callbackQueryId, String text, boolean showAlert) {
         post("answerCallbackQuery", Map.of(
                 "callback_query_id", callbackQueryId,
@@ -83,6 +107,10 @@ public class TelegramBotClient {
     // --- Long Polling ---
 
     public List<TelegramUpdate> getUpdates(long offset, int timeout) {
+        if (baseUrl == null || baseUrl.isEmpty()) {
+            log.warn("getUpdates skipped: baseUrl is empty (telegram.bot.token not configured)");
+            return List.of();
+        }
         try {
             String url = baseUrl + "/getUpdates?offset=" + offset
                     + "&timeout=" + timeout + "&limit=100";
@@ -106,6 +134,10 @@ public class TelegramBotClient {
     // --- Приватный метод отправки ---
 
     private void post(String method, Object payload) {
+        if (baseUrl == null || baseUrl.isEmpty()) {
+            log.warn("Telegram {} skipped: baseUrl is empty (telegram.bot.token not configured)", method);
+            return;
+        }
         try {
             String json = mapper.writeValueAsString(payload);
             Request req = new Request.Builder()

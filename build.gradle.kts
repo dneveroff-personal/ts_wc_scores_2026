@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "3.0.5"
+version = "5.0.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -34,13 +34,14 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
-    // PostgreSQL + Flyway
+    // H2 + Flyway
     runtimeOnly("org.postgresql:postgresql")
-    implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.flywaydb:flyway-core")
 
     // OkHttp — для своего Telegram HTTP клиента
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 
     // Lombok (для Java-классов, если останутся)
     compileOnly("org.projectlombok:lombok")
