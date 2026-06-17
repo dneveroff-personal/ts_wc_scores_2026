@@ -23,6 +23,12 @@ if ! command -v psql &> /dev/null; then
     apt-get install -y --no-install-recommends postgresql
 fi
 
+# Запускаем и включаем автозапуск PostgreSQL
+echo "🚀 Starting PostgreSQL service..."
+systemctl enable postgresql
+systemctl start postgresql
+echo "✅ PostgreSQL started"
+
 # Создаём БД и пользователя если не существуют
 echo "🗄️ Setting up database..."
 su - postgres -c "psql -tc \"SELECT 1 FROM pg_user WHERE usename='wc_user'\"" | grep -q 1 || \

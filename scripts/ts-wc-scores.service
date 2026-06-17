@@ -1,7 +1,7 @@
 [Unit]
 Description=TS WC Scores 2026 Telegram Bot
 After=network.target postgresql.service
-Requires=postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
@@ -12,6 +12,8 @@ ExecStart=/usr/bin/java -Xmx200m -jar /root/ts-wc-scores/app.jar
 ExecStop=/bin/kill -TERM $MAINPID
 Restart=on-failure
 RestartSec=10
+StartLimitIntervalSec=infinity
+StartLimitBurst=5
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=ts-wc-scores

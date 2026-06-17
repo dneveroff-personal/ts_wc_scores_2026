@@ -150,3 +150,17 @@ scripts/
 - Код соревнования `WC` в `application.yml` — проверь актуальность на [football-data.org](https://www.football-data.org/documentation/quickstart)
 - Данные H2 хранятся в `./data/h2/` — копируй эту папку при переносе на новый сервер
 - Для production на VPS H2 работает в file-based режиме с `AUTO_SERVER=TRUE`, что позволяет нескольким процессам подключаться к одной БД
+
+## ОЧИСТКА
+ssh root@89.125.248.168 "
+# Очищаем syslog и daemon.log (они пересоздадутся автоматически)
+> /var/log/syslog
+> /var/log/daemon.log
+> /var/log/kern.log
+> /var/log/messages
+
+# Journald
+journalctl --vacuum-size=50M
+
+df -h /
+"

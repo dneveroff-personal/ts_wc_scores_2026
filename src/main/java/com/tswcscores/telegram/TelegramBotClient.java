@@ -3,17 +3,14 @@ package com.tswcscores.telegram;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
-import java.util.concurrent.TimeUnit;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Свой HTTP-клиент к Telegram Bot API.
- * Никаких сторонних telegram-библиотек — только OkHttp + Jackson.
- */
 @Slf4j
 @Component
 public class TelegramBotClient {
@@ -21,25 +18,21 @@ public class TelegramBotClient {
     private static final MediaType JSON = MediaType.get("application/json");
 
     private final OkHttpClient http = new OkHttpClient.Builder()
-            .readTimeout(35, TimeUnit.SECONDS)   // > 25s polling timeout
+            .readTimeout(35, TimeUnit.SECONDS)
             .connectTimeout(10, TimeUnit.SECONDS)
             .build();
     private final ObjectMapper mapper = new ObjectMapper();
     private final String baseUrl;
 
-    public TelegramBotClient(@Value("${telegram.bot.token:}") String token) {
+    // @Autowired явно указывает Spring использовать именно этот конструктор
+    @Autowired
+    public TelegramBotClient(@Value("${telegram.bot.token}") String token) {
+        if (token == null || token.isBlank()) {
+            throw new IllegalStateException(
+                "telegram.bot.token is empty! Check .env file on the server.");
+        }
         this.baseUrl = "https://api.telegram.org/bot" + token;
-        log.info("TelegramBotClient initialized with baseUrl: {}", baseUrl);
-    }
-
-    // For tests
-    TelegramBotClient(String token, String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
-
-    // Fallback for Spring when @Value cannot be resolved
-    public TelegramBotClient() {
-        this.baseUrl = "";
+        log.info("TelegramBotClient initialized, token length={}", token.length());
     }
 
     // --- Отправка сообщений ---
@@ -52,7 +45,8 @@ public class TelegramBotClient {
         ));
     }
 
-    public void sendMessageWithInlineKeyboard(long chatId, String text, List<List<Map<String, String>>> keyboard) {
+    public void sendMessageWithInlineKeyboard(long chatId, String text,
+            List<List<Map<String, String>>> keyboard) {
         post("sendMessage", Map.of(
                 "chat_id", chatId,
                 "text", text,
@@ -61,7 +55,8 @@ public class TelegramBotClient {
         ));
     }
 
-    public void sendMessageWithReplyKeyboard(long chatId, String text, List<List<String>> buttonRows) {
+    public void sendMessageWithReplyKeyboard(long chatId, String text,
+            List<List<String>> buttonRows) {
         List<List<Map<String, String>>> keyboard = buttonRows.stream()
                 .map(row -> row.stream()
                         .map(label -> Map.of("text", label))
@@ -79,7 +74,8 @@ public class TelegramBotClient {
         ));
     }
 
-    public void sendMessageWithForceReplyAndPlaceholder(long chatId, String text, String placeholder) {
+    public void sendMessageWithForceReplyAndPlaceholder(long chatId, String text,
+            String placeholder) {
         post("sendMessage", Map.of(
                 "chat_id", chatId,
                 "text", text,
@@ -107,10 +103,6 @@ public class TelegramBotClient {
     // --- Long Polling ---
 
     public List<TelegramUpdate> getUpdates(long offset, int timeout) {
-        if (baseUrl == null || baseUrl.isEmpty()) {
-            log.warn("getUpdates skipped: baseUrl is empty (telegram.bot.token not configured)");
-            return List.of();
-        }
         try {
             String url = baseUrl + "/getUpdates?offset=" + offset
                     + "&timeout=" + timeout + "&limit=100";
@@ -134,10 +126,6 @@ public class TelegramBotClient {
     // --- Приватный метод отправки ---
 
     private void post(String method, Object payload) {
-        if (baseUrl == null || baseUrl.isEmpty()) {
-            log.warn("Telegram {} skipped: baseUrl is empty (telegram.bot.token not configured)", method);
-            return;
-        }
         try {
             String json = mapper.writeValueAsString(payload);
             Request req = new Request.Builder()
@@ -146,7 +134,8 @@ public class TelegramBotClient {
                     .build();
             try (Response resp = http.newCall(req).execute()) {
                 if (!resp.isSuccessful()) {
-                    log.warn("Telegram {} failed: {} {}", method, resp.code(), resp.body().string());
+                    log.warn("Telegram {} failed: {} {}", method, resp.code(),
+                            resp.body().string());
                 }
             }
         } catch (Exception e) {
