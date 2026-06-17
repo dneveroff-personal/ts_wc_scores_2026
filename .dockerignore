@@ -1,0 +1,11 @@
+.git
+.gradle
+src
+data
+backups
+scripts
+*.md
+.env
+.gitignore
+.gitattributes
+Makefile
