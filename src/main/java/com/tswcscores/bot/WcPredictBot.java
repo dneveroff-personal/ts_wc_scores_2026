@@ -180,15 +180,7 @@ public class WcPredictBot {
     }
 
     private void handleLeaderboard(Long chatId, String fullText) {
-        boolean global = fullText.toLowerCase().contains("global");
-        boolean isGroup = chatId < 0;
-        if (global || !isGroup) {
-            telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
-        } else {
-            var entries = groupService.getGroupLeaderboard(chatId);
-            String title = entries.isEmpty() ? null : entries.get(0).getChatGroup().getTitle();
-            telegram.sendMessage(chatId, BotMessageBuilder.groupLeaderboard(title, entries));
-        }
+        telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
     }
 
     private void handleSync(Long chatId) {

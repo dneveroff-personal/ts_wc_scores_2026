@@ -42,7 +42,8 @@ deploy: build
 		docker-compose.yml \
 		$(HOST):~/ts-wc-scores/
 	ssh $(HOST) "cd ~/ts-wc-scores \
-		&& mv *.jar build/ 2>/dev/null || (mkdir -p build/libs && mv *.jar build/libs/) \
+		&& rm -f build/libs/*.jar \
+		&& mv *.jar build/libs/ \
 		&& docker compose down --remove-orphans \
 		&& docker image rm wc-scores-app 2>/dev/null || true \
 		&& docker compose up -d --build"
