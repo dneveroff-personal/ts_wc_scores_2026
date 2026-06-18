@@ -93,7 +93,9 @@ public class WcPredictBot {
         }
         if (text.isEmpty()) return;
 
+        // Для slash-команд берём первый токен, для кнопок — всю строку целиком
         String command = text.split("\\s+")[0].toLowerCase();
+        String textLower = text.toLowerCase().trim();
         log.debug("Command '{}' from {} in chat {}", command, tgUser.getId(), chatId);
 
         switch (command) {
@@ -105,12 +107,14 @@ public class WcPredictBot {
             case "/help"               -> telegram.sendMessage(chatId, BotMessageBuilder.help(BOT_VERSION));
             case "/sync"               -> handleSync(chatId);
             case "/calcscore"          -> handleCalcScore(chatId);
-            // Кнопки ReplyKeyboard
-            case "⚽ матчи"         -> handleMatches(chatId, tgUser.getId());
-            case "📋 мои прогнозы" -> handleMyPredictions(chatId, tgUser.getId());
-            case "🏆 рейтинг"       -> handleLeaderboard(chatId, text);
-            case "❓ помощь"        -> telegram.sendMessage(chatId, BotMessageBuilder.help(BOT_VERSION));
-            default -> { if (!isGroup) telegram.sendMessage(chatId, "Не понял команду. Используй /help"); }
+            default -> {
+                // Кнопки ReplyKeyboard — сравниваем всю строку целиком (без учёта регистра)
+                if      (textLower.equals("⚽ матчи"))         handleMatches(chatId, tgUser.getId());
+                else if (textLower.equals("📋 мои прогнозы")) handleMyPredictions(chatId, tgUser.getId());
+                else if (textLower.equals("🏆 рейтинг"))       handleLeaderboard(chatId, text);
+                else if (textLower.equals("❓ помощь"))        telegram.sendMessage(chatId, BotMessageBuilder.help(BOT_VERSION));
+                else if (!isGroup) telegram.sendMessage(chatId, "Не понял команду. Используй /help");
+            }
         }
     }
 
