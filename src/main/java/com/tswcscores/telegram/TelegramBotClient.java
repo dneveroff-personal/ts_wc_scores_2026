@@ -96,6 +96,27 @@ public class TelegramBotClient {
         ));
     }
 
+    /** Редактирует текст и клавиатуру уже отправленного сообщения */
+    public void editMessage(long chatId, int messageId, String text,
+            List<List<Map<String, String>>> keyboard) {
+        post("editMessageText", Map.of(
+                "chat_id", chatId,
+                "message_id", messageId,
+                "text", text,
+                "parse_mode", "HTML",
+                "reply_markup", Map.of("inline_keyboard", keyboard)
+        ));
+    }
+
+    /** Убирает inline-клавиатуру у сообщения */
+    public void removeKeyboard(long chatId, int messageId) {
+        post("editMessageReplyMarkup", Map.of(
+                "chat_id", chatId,
+                "message_id", messageId,
+                "reply_markup", Map.of("inline_keyboard", List.of())
+        ));
+    }
+
     public void setMyCommands(List<Map<String, String>> commands) {
         post("setMyCommands", Map.of("commands", commands));
     }

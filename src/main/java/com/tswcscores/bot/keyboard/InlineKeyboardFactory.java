@@ -37,12 +37,11 @@ public class InlineKeyboardFactory {
                         homeFlag, homeName, awayName, awayFlag,
                         m.getUtcDate().format(FMT));
 
-            // switchInlineQueryCurrentChat вставляет "/predict {id} " в поле ввода пользователя.
-            // Требует включённого Inline Mode в BotFather:
-            // @BotFather → /mybots → Bot Settings → Inline Mode → Turn On
+            // callbackData — работает везде (личка и группа), не требует Inline Mode.
+            // При нажатии бот получает callback и отвечает подсказкой с командой.
             rows.add(List.of(Map.of(
                     "text", label,
-                    "switch_inline_query_current_chat", "/predict " + m.getId() + " "
+                    "callback_data", PREDICT_PREFIX + m.getId()
             )));
         }
         return rows;

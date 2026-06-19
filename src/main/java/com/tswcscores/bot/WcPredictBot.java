@@ -2,6 +2,7 @@ package com.tswcscores.bot;
 
 import com.tswcscores.bot.handler.BotMessageBuilder;
 import com.tswcscores.bot.keyboard.InlineKeyboardFactory;
+import com.tswcscores.bot.keyboard.PredictKeyboard;
 import com.tswcscores.entity.Match;
 import com.tswcscores.entity.Prediction;
 import com.tswcscores.entity.User;
@@ -67,7 +68,10 @@ public class WcPredictBot {
     // --- Точка входа ---
 
     public void handleUpdate(TelegramUpdate update) {
-        // inline_query и callback_query игнорируем — кнопки используют switchInlineQueryCurrentChat
+        if (update.hasCallbackQuery()) {
+            handleCallback(update.getCallbackQuery());
+            return;
+        }
         if (!update.hasMessage()) return;
 
         TelegramUpdate.TelegramMessage msg = update.getMessage();
@@ -103,7 +107,14 @@ public class WcPredictBot {
             case "/matches"            -> handleMatches(chatId, tgUser.getId());
             case "/predict"            -> handlePredict(chatId, tgUser.getId(), text);
             case "/mypredictions"      -> handleMyPredictions(chatId, tgUser.getId());
-            case "/leaderboard"        -> handleLeaderboard(chatId, text);
+            case "/leaderboard"        -> {
+                // Регистрируем пользователя в группе при любом вызове команды
+                if (isGroup) {
+                    userService.findByTelegramId(tgUser.getId())
+                            .ifPresent(u -> groupService.ensureUserInGroup(u, chatId));
+                }
+                handleLeaderboard(chatId, text, isGroup);
+            }
             case "/help"               -> telegram.sendMessage(chatId, BotMessageBuilder.help(BOT_VERSION));
             case "/sync"               -> handleSync(chatId);
             case "/calcscore"          -> handleCalcScore(chatId);
@@ -111,7 +122,7 @@ public class WcPredictBot {
                 // Кнопки ReplyKeyboard — сравниваем всю строку целиком (без учёта регистра)
                 if      (textLower.equals("⚽ матчи"))         handleMatches(chatId, tgUser.getId());
                 else if (textLower.equals("📋 мои прогнозы")) handleMyPredictions(chatId, tgUser.getId());
-                else if (textLower.equals("🏆 рейтинг"))       handleLeaderboard(chatId, text);
+                else if (textLower.equals("🏆 рейтинг"))       handleLeaderboard(chatId, text, isGroup);
                 else if (textLower.equals("❓ помощь"))        telegram.sendMessage(chatId, BotMessageBuilder.help(BOT_VERSION));
                 else if (!isGroup) telegram.sendMessage(chatId, "Не понял команду. Используй /help");
             }
@@ -176,11 +187,112 @@ public class WcPredictBot {
         Optional<User> userOpt = userService.findByTelegramId(telegramId);
         if (userOpt.isEmpty()) { telegram.sendMessage(chatId, BotMessageBuilder.notRegistered()); return; }
         telegram.sendMessage(chatId,
-                BotMessageBuilder.myPredictions(predictionService.getUserPredictions(userOpt.get())));
+                BotMessageBuilder.myPredictions(predictionService.getRecentPredictions(userOpt.get())));
     }
 
-    private void handleLeaderboard(Long chatId, String fullText) {
-        telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
+    private void handleCallback(com.tswcscores.telegram.TelegramUpdate.TelegramCallbackQuery callback) {
+        String data = callback.getData();
+        if (data == null) return;
+        Long chatId = callback.getChatId();
+        Long telegramId = callback.getFrom().getId();
+        Integer messageId = callback.getMessageId();
+        boolean isGroup = chatId != null && chatId < 0;
+        Long dialogChatId = isGroup ? telegramId : chatId;
+
+        telegram.answerCallbackQuery(callback.getId(), "", false);
+
+        // Шаг 0: нажали кнопку матча → выбор голов хозяев
+        if (data.startsWith(InlineKeyboardFactory.PREDICT_PREFIX)) {
+            long matchId = Long.parseLong(data.substring(InlineKeyboardFactory.PREDICT_PREFIX.length()));
+            matchRepository.findById(matchId).ifPresent(match -> {
+                if (!match.isPredictionAllowed()) {
+                    telegram.sendMessage(dialogChatId, "⛔ Дедлайн прошёл, матч уже начался.");
+                    return;
+                }
+                if (isGroup) {
+                    telegram.sendMessage(dialogChatId,
+                            "⚽ Прогноз на <b>" + match.getTitle() + "</b>:");
+                }
+                telegram.sendMessageWithInlineKeyboard(dialogChatId,
+                        PredictKeyboard.homePrompt(match),
+                        PredictKeyboard.homeGoalsKeyboard(matchId));
+            });
+            return;
+        }
+
+        // Шаг 1: выбрали голы хозяев → выбор голов гостей
+        if (data.startsWith(PredictKeyboard.PICK_AWAY)) {
+            String[] parts = data.substring(PredictKeyboard.PICK_AWAY.length()).split(":");
+            long matchId = Long.parseLong(parts[0]);
+            int homeGoals = Integer.parseInt(parts[1]);
+            matchRepository.findById(matchId).ifPresent(match ->
+                    telegram.editMessage(dialogChatId, messageId,
+                            PredictKeyboard.awayPrompt(match, homeGoals),
+                            PredictKeyboard.awayGoalsKeyboard(matchId, homeGoals))
+            );
+            return;
+        }
+
+        // Шаг 2: выбрали голы гостей → сохраняем прогноз
+        if (data.startsWith(PredictKeyboard.PICK_CONFIRM)) {
+            String[] parts = data.substring(PredictKeyboard.PICK_CONFIRM.length()).split(":");
+            long matchId = Long.parseLong(parts[0]);
+            int homeGoals = Integer.parseInt(parts[1]);
+            int awayGoals = Integer.parseInt(parts[2]);
+            var userOpt = userService.findByTelegramId(telegramId);
+            if (userOpt.isEmpty()) {
+                telegram.editMessage(dialogChatId, messageId,
+                        BotMessageBuilder.notRegistered(), List.of());
+                return;
+            }
+            try {
+                var pred = predictionService.savePrediction(
+                        userOpt.get(), matchId, homeGoals, awayGoals);
+                telegram.editMessage(dialogChatId, messageId,
+                        BotMessageBuilder.predictionSaved(pred), List.of());
+            } catch (com.tswcscores.exception.DeadlinePassedException e) {
+                telegram.editMessage(dialogChatId, messageId,
+                        "⛔ " + e.getMessage(), List.of());
+            }
+            return;
+        }
+
+        // Назад: возврат к выбору голов хозяев
+        if (data.startsWith(PredictKeyboard.PICK_HOME)) {
+            long matchId = Long.parseLong(data.substring(PredictKeyboard.PICK_HOME.length()));
+            matchRepository.findById(matchId).ifPresent(match ->
+                    telegram.editMessage(dialogChatId, messageId,
+                            PredictKeyboard.homePrompt(match),
+                            PredictKeyboard.homeGoalsKeyboard(matchId))
+            );
+            return;
+        }
+
+        // Отмена
+        if (data.equals("cancel")) {
+            telegram.editMessage(dialogChatId, messageId, "❌ Прогноз отменён.", List.of());
+        }
+    }
+
+    private void handleLeaderboard(Long chatId, String fullText, boolean isGroup) {
+        boolean global = fullText.toLowerCase().contains("global");
+        if (global) {
+            // Явно запросили глобальный рейтинг
+            telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
+        } else if (isGroup) {
+            // В группе — групповой рейтинг
+            var entries = groupService.getGroupLeaderboard(chatId);
+            if (entries.isEmpty()) {
+                // Группа не зарегистрирована или нет участников — показываем глобальный
+                telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
+            } else {
+                String title = entries.get(0).getChatGroup().getTitle();
+                telegram.sendMessage(chatId, BotMessageBuilder.groupLeaderboard(title, entries));
+            }
+        } else {
+            // В личке — глобальный рейтинг
+            telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
+        }
     }
 
     private void handleSync(Long chatId) {

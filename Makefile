@@ -35,18 +35,23 @@ deploy: build
 	@if [ -z "$(JAR)" ]; then echo "❌ JAR not found"; exit 1; fi
 	$(eval VERSION := $(shell echo $(JAR) | grep -oP '\d+\.\d+\.\d+'))
 	@echo "📦 Deploying v$(VERSION) to $(HOST)..."
-	ssh $(HOST) "mkdir -p ~/ts-wc-scores/data/postgres"
-	rsync -avz --checksum \
+	# Открываем одно SSH соединение и переиспользуем его для всех команд
+	ssh -o ControlMaster=yes -o ControlPath=/tmp/ssh-wc-%r@%h:%p -o ControlPersist=60 $(HOST) "mkdir -p ~/ts-wc-scores/data/postgres"
+	rsync -avz --checksum -e "ssh -o ControlPath=/tmp/ssh-wc-%r@%h:%p" \
 		$(JAR) \
 		Dockerfile \
 		docker-compose.yml \
 		$(HOST):~/ts-wc-scores/
-	ssh $(HOST) "cd ~/ts-wc-scores \
+	ssh -o ControlPath=/tmp/ssh-wc-%r@%h:%p $(HOST) "cd ~/ts-wc-scores \
+		&& mkdir -p build/libs \
 		&& rm -f build/libs/*.jar \
-		&& mv *.jar build/libs/ \
+		&& mv ts-wc-scores-*.jar build/libs/app.jar \
 		&& docker compose down --remove-orphans \
 		&& docker image rm wc-scores-app 2>/dev/null || true \
-		&& docker compose up -d --build"
+		&& docker compose build --no-cache app \
+		&& docker compose up -d"
+	# Закрываем соединение
+	ssh -O exit -o ControlPath=/tmp/ssh-wc-%r@%h:%p $(HOST) 2>/dev/null || true
 	@echo "✅ v$(VERSION) deployed!"
 
 logs-vps:

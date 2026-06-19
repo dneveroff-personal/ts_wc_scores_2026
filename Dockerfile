@@ -1,6 +1,7 @@
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-# Копируем предварительно собранный jar (plain jar отключён в gradle)
-COPY build/libs/ts-wc-scores-*.jar app.jar
+# Jar переименовывается в app.jar при деплое (см. Makefile)
+# Стабильное имя + --no-cache гарантируют что Docker не использует старый слой
+COPY build/libs/app.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-Xmx256m", "-jar", "app.jar"]

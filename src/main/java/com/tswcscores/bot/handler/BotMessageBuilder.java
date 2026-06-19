@@ -86,9 +86,9 @@ public class BotMessageBuilder {
 
     public static String myPredictions(List<Prediction> predictions) {
         if (predictions.isEmpty()) {
-            return "У тебя ещё нет прогнозов.\n/matches — посмотреть матчи";
+            return "📋 Нет прогнозов на ближайшие матчи.\n\n/matches — посмотреть матчи и сделать прогноз";
         }
-        StringBuilder sb = new StringBuilder("📋 <b>Твои прогнозы:</b>\n\n");
+        StringBuilder sb = new StringBuilder("📋 <b>Твои прогнозы (ближайшие 24ч):</b>\n\n");
         for (Prediction p : predictions) {
             Match m = p.getMatch();
             sb.append(String.format("<b>%s</b>  %s\n", m.getTitle(), m.getUtcDate().format(FMT)));

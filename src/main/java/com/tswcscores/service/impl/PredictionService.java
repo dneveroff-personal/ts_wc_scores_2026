@@ -2,6 +2,7 @@ package com.tswcscores.service.impl;
 
 import com.tswcscores.entity.Match;
 import com.tswcscores.entity.Prediction;
+import java.time.LocalDateTime;
 import com.tswcscores.entity.User;
 import com.tswcscores.exception.DeadlinePassedException;
 import com.tswcscores.exception.MatchNotFoundException;
@@ -41,5 +42,11 @@ public class PredictionService {
 
     public List<Prediction> getUserPredictions(User user) {
         return predictionRepository.findByUserIdWithMatch(user.getId());
+    }
+
+    /** Прогнозы на матчи от 24 ч назад и далее в будущее */
+    public List<Prediction> getRecentPredictions(User user) {
+        LocalDateTime from = LocalDateTime.now().minusHours(24);
+        return predictionRepository.findRecentByUserId(user.getId(), from);
     }
 }

@@ -53,7 +53,8 @@ public class TelegramUpdate {
         @JsonProperty("message") private TelegramMessage message;
         @JsonProperty("data")    private String data;
 
-        public Long getChatId() { return message != null ? message.getChatId() : null; }
+        public Long getChatId()    { return message != null ? message.getChatId() : null; }
+        public Integer getMessageId() { return message != null ? message.getMessageId().intValue() : null; }
     }
 
     @Data
