@@ -35,6 +35,11 @@ public class TelegramBotClient {
         log.info("TelegramBotClient initialized, token length={}", token.length());
     }
 
+    // Package-private constructor for testing
+    TelegramBotClient(String token, String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
     // --- Отправка сообщений ---
 
     public void sendMessage(long chatId, String text) {

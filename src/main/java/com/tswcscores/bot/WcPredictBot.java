@@ -196,8 +196,10 @@ public class WcPredictBot {
         Long chatId = callback.getChatId();
         Long telegramId = callback.getFrom().getId();
         Integer messageId = callback.getMessageId();
+        // Если chatId null (например, message отсутствует), используем telegramId
+        // Это гарантирует, что сообщение придет тому, кто нажал кнопку
         boolean isGroup = chatId != null && chatId < 0;
-        Long dialogChatId = isGroup ? telegramId : chatId;
+        Long dialogChatId = isGroup ? telegramId : (chatId != null ? chatId : telegramId);
 
         telegram.answerCallbackQuery(callback.getId(), "", false);
 
@@ -225,11 +227,17 @@ public class WcPredictBot {
             String[] parts = data.substring(PredictKeyboard.PICK_AWAY.length()).split(":");
             long matchId = Long.parseLong(parts[0]);
             int homeGoals = Integer.parseInt(parts[1]);
-            matchRepository.findById(matchId).ifPresent(match ->
+            matchRepository.findById(matchId).ifPresent(match -> {
+                if (messageId != null) {
                     telegram.editMessage(dialogChatId, messageId,
                             PredictKeyboard.awayPrompt(match, homeGoals),
-                            PredictKeyboard.awayGoalsKeyboard(matchId, homeGoals))
-            );
+                            PredictKeyboard.awayGoalsKeyboard(matchId, homeGoals));
+                } else {
+                    telegram.sendMessageWithInlineKeyboard(dialogChatId,
+                            PredictKeyboard.awayPrompt(match, homeGoals),
+                            PredictKeyboard.awayGoalsKeyboard(matchId, homeGoals));
+                }
+            });
             return;
         }
 
@@ -241,18 +249,30 @@ public class WcPredictBot {
             int awayGoals = Integer.parseInt(parts[2]);
             var userOpt = userService.findByTelegramId(telegramId);
             if (userOpt.isEmpty()) {
-                telegram.editMessage(dialogChatId, messageId,
-                        BotMessageBuilder.notRegistered(), List.of());
+                if (messageId != null) {
+                    telegram.editMessage(dialogChatId, messageId,
+                            BotMessageBuilder.notRegistered(), List.of());
+                } else {
+                    telegram.sendMessage(dialogChatId, BotMessageBuilder.notRegistered());
+                }
                 return;
             }
             try {
                 var pred = predictionService.savePrediction(
                         userOpt.get(), matchId, homeGoals, awayGoals);
-                telegram.editMessage(dialogChatId, messageId,
-                        BotMessageBuilder.predictionSaved(pred), List.of());
+                if (messageId != null) {
+                    telegram.editMessage(dialogChatId, messageId,
+                            BotMessageBuilder.predictionSaved(pred), List.of());
+                } else {
+                    telegram.sendMessage(dialogChatId, BotMessageBuilder.predictionSaved(pred));
+                }
             } catch (com.tswcscores.exception.DeadlinePassedException e) {
-                telegram.editMessage(dialogChatId, messageId,
-                        "⛔ " + e.getMessage(), List.of());
+                if (messageId != null) {
+                    telegram.editMessage(dialogChatId, messageId,
+                            "⛔ " + e.getMessage(), List.of());
+                } else {
+                    telegram.sendMessage(dialogChatId, "⛔ " + e.getMessage());
+                }
             }
             return;
         }
@@ -260,17 +280,27 @@ public class WcPredictBot {
         // Назад: возврат к выбору голов хозяев
         if (data.startsWith(PredictKeyboard.PICK_HOME)) {
             long matchId = Long.parseLong(data.substring(PredictKeyboard.PICK_HOME.length()));
-            matchRepository.findById(matchId).ifPresent(match ->
+            matchRepository.findById(matchId).ifPresent(match -> {
+                if (messageId != null) {
                     telegram.editMessage(dialogChatId, messageId,
                             PredictKeyboard.homePrompt(match),
-                            PredictKeyboard.homeGoalsKeyboard(matchId))
-            );
+                            PredictKeyboard.homeGoalsKeyboard(matchId));
+                } else {
+                    telegram.sendMessageWithInlineKeyboard(dialogChatId,
+                            PredictKeyboard.homePrompt(match),
+                            PredictKeyboard.homeGoalsKeyboard(matchId));
+                }
+            });
             return;
         }
 
         // Отмена
         if (data.equals("cancel")) {
-            telegram.editMessage(dialogChatId, messageId, "❌ Прогноз отменён.", List.of());
+            if (messageId != null) {
+                telegram.editMessage(dialogChatId, messageId, "❌ Прогноз отменён.", List.of());
+            } else {
+                telegram.sendMessage(dialogChatId, "❌ Прогноз отменён.");
+            }
         }
     }
 

@@ -98,7 +98,7 @@ class WcPredictBotTest {
     }
 
     @Test
-    void handleUpdateWithCallbackQueryIsIgnored() {
+    void handleUpdateWithCallbackQuerySendsMessageToCorrectUser() {
         TelegramBotClient telegram = mock(TelegramBotClient.class);
         UserService userService = mock(UserService.class);
         PredictionService predictionService = mock(PredictionService.class);
@@ -106,6 +106,24 @@ class WcPredictBotTest {
         FootballDataService footballDataService = mock(FootballDataService.class);
         ScoringService scoringService = mock(ScoringService.class);
         GroupService groupService = mock(GroupService.class);
+
+        Team homeTeam = new Team();
+        homeTeam.setId(1L);
+        homeTeam.setTla("RUS");
+        homeTeam.setShortName("Russia");
+
+        Team awayTeam = new Team();
+        awayTeam.setId(2L);
+        awayTeam.setTla("BRA");
+        awayTeam.setShortName("Brazil");
+
+        com.tswcscores.entity.Match match = new com.tswcscores.entity.Match();
+        match.setId(123L);
+        match.setStatus(com.tswcscores.entity.Match.Status.SCHEDULED);
+        match.setUtcDate(java.time.LocalDateTime.now().plusHours(2));
+        match.setHomeTeam(homeTeam);
+        match.setAwayTeam(awayTeam);
+        when(matchRepository.findById(123L)).thenReturn(Optional.of(match));
 
         WcPredictBot bot = new WcPredictBot(
                 telegram,
@@ -118,6 +136,8 @@ class WcPredictBotTest {
                 null
         );
 
+        // Тест: пользователь с ID 42 нажимает кнопку predict в группе (chatId = -100)
+        // Сообщение должно прийти в личку пользователю 42, а не в группу
         TelegramUpdate.TelegramCallbackQuery callback = new TelegramUpdate.TelegramCallbackQuery();
         callback.setId("callback-1");
         callback.setData("predict:123");
@@ -131,6 +151,7 @@ class WcPredictBotTest {
 
         TelegramUpdate.TelegramMessage message = new TelegramUpdate.TelegramMessage();
         message.setChat(chat);
+        message.setMessageId(1L);
         callback.setMessage(message);
 
         TelegramUpdate update = new TelegramUpdate();
@@ -138,7 +159,9 @@ class WcPredictBotTest {
 
         bot.handleUpdate(update);
 
-        verify(telegram, org.mockito.Mockito.never()).sendMessage(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
-        verify(telegram, org.mockito.Mockito.never()).answerCallbackQuery(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyBoolean());
+        // Проверяем, что answerCallbackQuery был вызван (чтобы убрать часики)
+        verify(telegram).answerCallbackQuery(eq("callback-1"), eq(""), eq(false));
+        // Проверяем, что сообщение отправилось пользователю 42 (telegramId), а не в группу (-100)
+        verify(telegram).sendMessageWithInlineKeyboard(eq(42L), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyList());
     }
 }
