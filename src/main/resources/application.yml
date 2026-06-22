@@ -40,6 +40,11 @@ predictions:
   window:
     hours: 24
 
+# Временная зона для отображения времени матчей пользователям
+# Данные хранятся в UTC, эта зона используется только для вывода
+display:
+  timezone: Europe/Moscow   # UTC+3, меняй под свою аудиторию
+
 logging:
   level:
     com.tswcscores: DEBUG

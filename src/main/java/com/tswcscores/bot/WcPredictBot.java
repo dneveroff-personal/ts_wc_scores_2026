@@ -107,14 +107,7 @@ public class WcPredictBot {
             case "/matches"            -> handleMatches(chatId, tgUser.getId());
             case "/predict"            -> handlePredict(chatId, tgUser.getId(), text);
             case "/mypredictions"      -> handleMyPredictions(chatId, tgUser.getId());
-            case "/leaderboard"        -> {
-                // Регистрируем пользователя в группе при любом вызове команды
-                if (isGroup) {
-                    userService.findByTelegramId(tgUser.getId())
-                            .ifPresent(u -> groupService.ensureUserInGroup(u, chatId));
-                }
-                handleLeaderboard(chatId, text, isGroup);
-            }
+            case "/leaderboard"        -> handleLeaderboard(chatId, text, isGroup);
             case "/help"               -> telegram.sendMessage(chatId, BotMessageBuilder.help(BOT_VERSION));
             case "/sync"               -> handleSync(chatId);
             case "/calcscore"          -> handleCalcScore(chatId);
@@ -305,24 +298,8 @@ public class WcPredictBot {
     }
 
     private void handleLeaderboard(Long chatId, String fullText, boolean isGroup) {
-        boolean global = fullText.toLowerCase().contains("global");
-        if (global) {
-            // Явно запросили глобальный рейтинг
-            telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
-        } else if (isGroup) {
-            // В группе — групповой рейтинг
-            var entries = groupService.getGroupLeaderboard(chatId);
-            if (entries.isEmpty()) {
-                // Группа не зарегистрирована или нет участников — показываем глобальный
-                telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
-            } else {
-                String title = entries.get(0).getChatGroup().getTitle();
-                telegram.sendMessage(chatId, BotMessageBuilder.groupLeaderboard(title, entries));
-            }
-        } else {
-            // В личке — глобальный рейтинг
-            telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
-        }
+        // Всегда глобальный рейтинг — групповые рейтинги убраны
+        telegram.sendMessage(chatId, BotMessageBuilder.leaderboard(userService.getLeaderboard()));
     }
 
     private void handleSync(Long chatId) {

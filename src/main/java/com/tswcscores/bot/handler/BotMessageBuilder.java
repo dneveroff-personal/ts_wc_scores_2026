@@ -3,12 +3,14 @@ package com.tswcscores.bot.handler;
 import com.tswcscores.entity.Match;
 import com.tswcscores.entity.Prediction;
 import com.tswcscores.entity.User;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class BotMessageBuilder {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    private static final ZoneId DISPLAY_ZONE = ZoneId.of("Europe/Moscow"); // UTC+3
 
     public static String welcome(User user) {
         return String.format("""
@@ -61,8 +63,12 @@ public class BotMessageBuilder {
         }
         StringBuilder sb = new StringBuilder("⚽ <b>Ближайшие матчи (24 ч):</b>\n\n");
         for (Match m : matches) {
-            sb.append(String.format("🆔 <code>%d</code>  <b>%s</b>\n📅 %s UTC\n",
-                    m.getId(), m.getTitle(), m.getUtcDate().format(FMT)));
+            String localTime = m.getUtcDate()
+                    .atZone(ZoneId.of("UTC"))
+                    .withZoneSameInstant(DISPLAY_ZONE)
+                    .format(FMT);
+            sb.append(String.format("🆔 <code>%d</code>  <b>%s</b>\n📅 %s (МСК)\n",
+                    m.getId(), m.getTitle(), localTime));
             if (m.getGroupName() != null) {
                 sb.append("📌 ").append(m.getGroupName()).append("\n");
             }
@@ -91,7 +97,11 @@ public class BotMessageBuilder {
         StringBuilder sb = new StringBuilder("📋 <b>Твои прогнозы (ближайшие 24ч):</b>\n\n");
         for (Prediction p : predictions) {
             Match m = p.getMatch();
-            sb.append(String.format("<b>%s</b>  %s\n", m.getTitle(), m.getUtcDate().format(FMT)));
+            String predLocalTime = m.getUtcDate()
+                    .atZone(ZoneId.of("UTC"))
+                    .withZoneSameInstant(DISPLAY_ZONE)
+                    .format(FMT);
+            sb.append(String.format("<b>%s</b>  %s (МСК)\n", m.getTitle(), predLocalTime));
             sb.append(String.format("Прогноз: <b>%d:%d</b>", p.getHomeScore(), p.getAwayScore()));
             if (m.isFinished() && m.getHomeScore() != null) {
                 sb.append(String.format("  |  Факт: %d:%d", m.getHomeScore(), m.getAwayScore()));
