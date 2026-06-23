@@ -37,6 +37,10 @@ public class User {
     @Builder.Default
     private boolean active = true;
 
+    @Column(name = "timezone", nullable = false, length = 50)
+    @Builder.Default
+    private String timezone = "Europe/Moscow";
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Prediction> predictions;
 

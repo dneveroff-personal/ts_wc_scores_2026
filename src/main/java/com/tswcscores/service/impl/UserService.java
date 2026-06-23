@@ -39,4 +39,13 @@ public class UserService {
     public List<User> getLeaderboard() {
         return userRepository.findLeaderboard();
     }
+
+    @Transactional
+    public User updateTimezone(Long telegramId, String timezone) {
+        User user = userRepository.findByTelegramId(telegramId)
+                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
+        user.setTimezone(timezone);
+        log.info("Updated timezone for user {}: {}", telegramId, timezone);
+        return userRepository.save(user);
+    }
 }

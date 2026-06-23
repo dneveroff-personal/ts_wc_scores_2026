@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.tswcscores.service.impl.TimezoneService.getCommonTimezones;
+
 @Slf4j
 @Component
 public class WcPredictBot {
@@ -108,6 +110,7 @@ public class WcPredictBot {
             case "/predict"            -> handlePredict(chatId, tgUser.getId(), text);
             case "/mypredictions"      -> handleMyPredictions(chatId, tgUser.getId());
             case "/leaderboard"        -> handleLeaderboard(chatId, text, isGroup);
+            case "/timezone"           -> handleTimezone(chatId, tgUser.getId(), text);
             case "/help"               -> telegram.sendMessage(chatId, BotMessageBuilder.help(BOT_VERSION));
             case "/sync"               -> handleSync(chatId);
             case "/calcscore"          -> handleCalcScore(chatId);
@@ -141,11 +144,11 @@ public class WcPredictBot {
         List<Prediction> predictions = predictionService.getUserPredictions(userOpt.get());
 
         if (matches.isEmpty()) {
-            telegram.sendMessage(chatId, BotMessageBuilder.matchList(matches));
+            telegram.sendMessage(chatId, BotMessageBuilder.matchList(userOpt.get(), matches));
         } else {
             telegram.sendMessageWithInlineKeyboard(chatId,
-                    BotMessageBuilder.matchList(matches),
-                    InlineKeyboardFactory.matchListKeyboard(matches, predictions));
+                    BotMessageBuilder.matchList(userOpt.get(), matches),
+                    InlineKeyboardFactory.matchListKeyboard(userOpt.get(), matches, predictions));
         }
     }
 
@@ -180,7 +183,47 @@ public class WcPredictBot {
         Optional<User> userOpt = userService.findByTelegramId(telegramId);
         if (userOpt.isEmpty()) { telegram.sendMessage(chatId, BotMessageBuilder.notRegistered()); return; }
         telegram.sendMessage(chatId,
-                BotMessageBuilder.myPredictions(predictionService.getRecentPredictions(userOpt.get())));
+                BotMessageBuilder.myPredictions(userOpt.get(), predictionService.getRecentPredictions(userOpt.get())));
+    }
+
+    private void handleTimezone(Long chatId, Long telegramId, String text) {
+        Optional<User> userOpt = userService.findByTelegramId(telegramId);
+        if (userOpt.isEmpty()) { telegram.sendMessage(chatId, BotMessageBuilder.notRegistered()); return; }
+
+        String[] parts = text.trim().split("\\s+");
+        if (parts.length < 2) {
+            // Show current timezone and available options
+            User user = userOpt.get();
+            String currentTz = user.getTimezone();
+            StringBuilder sb = new StringBuilder();
+            sb.append("🕐 <b>Твой текущий часовой пояс:</b> ").append(currentTz).append("\n\n");
+            sb.append("Доступные часовые пояса:\n");
+            for (String tz : getCommonTimezones()) {
+                sb.append("  • ").append(tz).append("\n");
+            }
+            sb.append("\nИспользование: <code>/timezone Europe/Moscow</code>");
+            telegram.sendMessage(chatId, sb.toString());
+            return;
+        }
+
+        String newTimezone = parts[1];
+        try {
+            java.time.ZoneId.of(newTimezone);
+        } catch (Exception e) {
+            telegram.sendMessage(chatId,
+                    "❌ Неверный часовой пояс: <code>" + newTimezone + "</code>\n" +
+                    "Используй формат IANA, например: <code>Europe/Moscow</code>");
+            return;
+        }
+
+        try {
+            User updatedUser = userService.updateTimezone(telegramId, newTimezone);
+            telegram.sendMessage(chatId,
+                    "✅ Часовой пояс обновлён: <b>" + updatedUser.getTimezone() + "</b>\n" +
+                    "Теперь все матчи будут отображаться в этом часовом поясе.");
+        } catch (Exception e) {
+            telegram.sendMessage(chatId, "❌ Ошибка обновления часового пояса: " + e.getMessage());
+        }
     }
 
     private void handleCallback(com.tswcscores.telegram.TelegramUpdate.TelegramCallbackQuery callback) {
@@ -325,6 +368,7 @@ public class WcPredictBot {
                 Map.of("command", "predict",       "description", "Сделать прогноз на матч"),
                 Map.of("command", "mypredictions", "description", "Мои прогнозы и очки"),
                 Map.of("command", "leaderboard",   "description", "Таблица лидеров группы"),
+                Map.of("command", "timezone",      "description", "Установить часовой пояс"),
                 Map.of("command", "sync",          "description", "Синхронизация матчей с API"),
                 Map.of("command", "calcscore",     "description", "Подсчёт очков"),
                 Map.of("command", "help",          "description", "Справка по командам")

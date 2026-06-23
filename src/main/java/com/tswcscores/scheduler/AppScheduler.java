@@ -2,10 +2,13 @@ package com.tswcscores.scheduler;
 
 import com.tswcscores.bot.WcPredictBot;
 import com.tswcscores.entity.Match;
+import com.tswcscores.entity.User;
 import com.tswcscores.repository.MatchRepository;
 import com.tswcscores.repository.PredictionRepository;
+import com.tswcscores.repository.UserRepository;
 import com.tswcscores.service.ScoringService;
 import com.tswcscores.service.impl.FootballDataService;
+import com.tswcscores.service.impl.TimezoneService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,8 +16,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -28,6 +33,7 @@ public class AppScheduler {
     private final MatchRepository matchRepository;
     private final PredictionRepository predictionRepository;
     private final WcPredictBot bot;
+    private final UserRepository userRepository;
 
     /** Синхронизация при старте приложения */
     @PostConstruct
@@ -68,9 +74,16 @@ public class AppScheduler {
         for (Match match : upcoming) {
             List<Long> telegramIds = predictionRepository.findTelegramIdsWithoutPrediction(match.getId());
             for (Long telegramId : telegramIds) {
+                Optional<User> userOpt = userRepository.findByTelegramId(telegramId);
+                ZoneId zone = userOpt.map(TimezoneService::getUserZone).orElse(ZoneId.of("Europe/Moscow"));
+                String localTime = match.getUtcDate()
+                        .atZone(ZoneId.of("UTC"))
+                        .withZoneSameInstant(zone)
+                        .format(FMT);
+                String abbr = TimezoneService.getZoneAbbreviation(zone);
                 bot.sendNotification(telegramId, String.format(
-                        "⏰ Через час матч: <b>%s</b> (%s)\nТы ещё не сделал прогноз!\nНажми /matches 👇",
-                        match.getTitle(), match.getUtcDate().format(FMT)));
+                        "⏰ Через час матч: <b>%s</b> (%s %s)\nТы ещё не сделал прогноз!\nНажми /matches 👇",
+                        match.getTitle(), localTime, abbr));
             }
         }
     }
