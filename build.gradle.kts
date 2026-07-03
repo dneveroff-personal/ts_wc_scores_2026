@@ -6,10 +6,11 @@ plugins {
     kotlin("jvm") version "1.9.24"
     kotlin("plugin.spring") version "1.9.24"
     kotlin("plugin.jpa") version "1.9.24"
+    jacoco
 }
 
 group = "com.tswcscores"
-version = "5.3.1"
+version = "5.3.2"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -76,4 +77,22 @@ tasks.withType<Test> {
 // Только один jar на выходе — executable bootJar
 tasks.named("jar") {
     enabled = false
+}
+
+jacoco {
+    toolVersion = "0.8.13"
+}
+
+tasks.test {
+    useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
 }

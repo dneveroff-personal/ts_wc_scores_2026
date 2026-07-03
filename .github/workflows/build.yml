@@ -25,3 +25,12 @@ jobs:
 
       - name: Build
         run: ./gradlew build
+
+      - name: Upload JaCoCo report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/test/html
+
+      - name: Build Docker image
+        run: docker build -t ts-wc-scores .
