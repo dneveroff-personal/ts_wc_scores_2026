@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "5.3.0"
+version = "5.3.1"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -18,8 +18,6 @@ java {
 repositories {
     mavenCentral()
 }
-
-
 
 dependencies {
     // Spring Boot
