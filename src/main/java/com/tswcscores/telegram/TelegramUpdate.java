@@ -9,68 +9,102 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TelegramUpdate {
 
-    @JsonProperty("update_id")
-    private Long updateId;
+  @JsonProperty("update_id")
+  private Long updateId;
+
+  @JsonProperty("message")
+  private TelegramMessage message;
+
+  @JsonProperty("callback_query")
+  private TelegramCallbackQuery callbackQuery;
+
+  // Inline query — приходит когда пользователь нажимает switchInlineQueryCurrentChat кнопку.
+  // Мы его не обрабатываем, но парсим чтобы не падало с ошибкой десериализации.
+  @JsonProperty("inline_query")
+  private Object inlineQuery;
+
+  public boolean hasMessage() {
+    return message != null && message.getText() != null && !message.getText().isBlank();
+  }
+
+  public boolean hasCallbackQuery() {
+    return callbackQuery != null;
+  }
+
+  @Data
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class TelegramMessage {
+    @JsonProperty("message_id")
+    private Long messageId;
+
+    @JsonProperty("from")
+    private TelegramUser from;
+
+    @JsonProperty("chat")
+    private TelegramChat chat;
+
+    @JsonProperty("text")
+    private String text;
+
+    public Long getChatId() {
+      return chat != null ? chat.getId() : null;
+    }
+
+    public boolean isGroup() {
+      return getChatId() != null && getChatId() < 0;
+    }
+  }
+
+  @Data
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class TelegramCallbackQuery {
+    @JsonProperty("id")
+    private String id;
+
+    @JsonProperty("from")
+    private TelegramUser from;
 
     @JsonProperty("message")
     private TelegramMessage message;
 
-    @JsonProperty("callback_query")
-    private TelegramCallbackQuery callbackQuery;
+    @JsonProperty("data")
+    private String data;
 
-    // Inline query — приходит когда пользователь нажимает switchInlineQueryCurrentChat кнопку.
-    // Мы его не обрабатываем, но парсим чтобы не падало с ошибкой десериализации.
-    @JsonProperty("inline_query")
-    private Object inlineQuery;
-
-    public boolean hasMessage() {
-        return message != null 
-            && message.getText() != null 
-            && !message.getText().isBlank();
+    public Long getChatId() {
+      return message != null ? message.getChatId() : null;
     }
 
-    public boolean hasCallbackQuery() {
-        return callbackQuery != null;
+    public Integer getMessageId() {
+      return message != null ? message.getMessageId().intValue() : null;
     }
+  }
 
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TelegramMessage {
-        @JsonProperty("message_id") private Long messageId;
-        @JsonProperty("from")       private TelegramUser from;
-        @JsonProperty("chat")       private TelegramChat chat;
-        @JsonProperty("text")       private String text;
+  @Data
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class TelegramUser {
+    @JsonProperty("id")
+    private Long id;
 
-        public Long getChatId() { return chat != null ? chat.getId() : null; }
-        public boolean isGroup()  { return getChatId() != null && getChatId() < 0; }
-    }
+    @JsonProperty("username")
+    private String username;
 
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TelegramCallbackQuery {
-        @JsonProperty("id")      private String id;
-        @JsonProperty("from")    private TelegramUser from;
-        @JsonProperty("message") private TelegramMessage message;
-        @JsonProperty("data")    private String data;
+    @JsonProperty("first_name")
+    private String firstName;
 
-        public Long getChatId()    { return message != null ? message.getChatId() : null; }
-        public Integer getMessageId() { return message != null ? message.getMessageId().intValue() : null; }
-    }
+    @JsonProperty("last_name")
+    private String lastName;
+  }
 
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TelegramUser {
-        @JsonProperty("id")         private Long id;
-        @JsonProperty("username")   private String username;
-        @JsonProperty("first_name") private String firstName;
-        @JsonProperty("last_name")  private String lastName;
-    }
+  @Data
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class TelegramChat {
+    @JsonProperty("id")
+    private Long id;
 
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TelegramChat {
-        @JsonProperty("id")    private Long id;
-        @JsonProperty("type")  private String type;
-        @JsonProperty("title") private String title;
-    }
+    @JsonProperty("type")
+    private String type;
+
+    @JsonProperty("title")
+    private String title;
+  }
 }

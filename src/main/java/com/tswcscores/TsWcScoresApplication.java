@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class TsWcScoresApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(TsWcScoresApplication.class, args);
-    }
+  public static void main(String[] args) {
+    SpringApplication.run(TsWcScoresApplication.class, args);
+  }
 }
