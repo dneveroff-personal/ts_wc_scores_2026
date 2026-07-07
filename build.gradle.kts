@@ -6,11 +6,12 @@ plugins {
     kotlin("jvm") version "1.9.24"
     kotlin("plugin.spring") version "1.9.24"
     kotlin("plugin.jpa") version "1.9.24"
+    id("com.diffplug.spotless") version "6.25.0"
     jacoco
 }
 
 group = "com.tswcscores"
-version = "5.3.3"
+version = "5.3.5"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -70,10 +71,6 @@ tasks.withType<KotlinCompile> {
     }
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
-}
-
 // Только один jar на выходе — executable bootJar
 tasks.named("jar") {
     enabled = false
@@ -96,3 +93,37 @@ tasks.jacocoTestReport {
         html.required.set(true)
     }
 }
+
+spotless {
+    java {
+        googleJavaFormat("1.21.0")
+            .reflowLongStrings()
+            .skipJavadocFormatting()
+
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+
+        targetExclude("build/**", "**/generated/**")
+    }
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
+// Чтобы spotlessCheck запускался перед компиляцией
+tasks.compileJava {
+    dependsOn(tasks.spotlessCheck)
+}
+
+// ### SpotlessCheck ###
+//# Проверка стиля
+//        ./gradlew spotlessCheck
+//
+//# Авто-исправление всех ошибок стиля (магия! ✨)
+//./gradlew spotlessApply
+//
+//# Только для Checkstyle
+//    ./gradlew checkstyleMain
+//    ./gradlew checkstyleTest

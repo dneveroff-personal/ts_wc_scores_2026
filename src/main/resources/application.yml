@@ -48,3 +48,9 @@ display:
 logging:
   level:
     com.tswcscores: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
