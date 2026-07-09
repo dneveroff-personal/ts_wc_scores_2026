@@ -37,7 +37,7 @@ deploy: build
 	@echo "📦 Deploying v$(VERSION) to $(HOST)..."
 	# Открываем одно SSH соединение и переиспользуем его для всех команд
 	ssh -o ControlMaster=yes -o ControlPath=/tmp/ssh-wc-%r@%h:%p -o ControlPersist=60 $(HOST) "mkdir -p ~/ts-wc-scores/data/postgres"
-	rsync -avz --checksum -e "ssh -o ControlPath=/tmp/ssh-wc-%r@%h:%p" \
+	scp -o ControlPath=/tmp/ssh-wc-%r@%h:%p \
 		$(JAR) \
 		Dockerfile \
 		docker-compose.yml \
@@ -46,6 +46,7 @@ deploy: build
 		&& mkdir -p build/libs \
 		&& rm -f build/libs/*.jar \
 		&& mv ts-wc-scores-*.jar build/libs/app.jar \
+		&& command -v docker >/dev/null 2>&1 || { echo '❌ Docker не установлен на сервере. Установите: curl -fsSL https://get.docker.com | sh'; exit 1; } \
 		&& docker compose down --remove-orphans \
 		&& docker image rm wc-scores-app 2>/dev/null || true \
 		&& docker compose build --no-cache app \

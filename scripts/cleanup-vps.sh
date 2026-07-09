@@ -5,13 +5,6 @@ set -e
 
 echo "🧹 Cleaning up VPS..."
 
-# 1. Останавливаем и удаляем systemd сервис приложения
-echo "Removing systemd service..."
-systemctl stop ts-wc-scores 2>/dev/null || true
-systemctl disable ts-wc-scores 2>/dev/null || true
-rm -f /etc/systemd/system/ts-wc-scores.service
-systemctl daemon-reload
-
 # 2. Удаляем PostgreSQL с хоста (данные сохраним в дамп перед этим!)
 echo "⚠️  Removing host PostgreSQL..."
 systemctl stop postgresql 2>/dev/null || true
