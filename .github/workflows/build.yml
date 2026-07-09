@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
 
@@ -14,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Загрузка энвармента
+      # Загрузка энвайрмента
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -33,7 +37,20 @@ jobs:
       - name: Build
         run: ./gradlew build
 
-      # Степень покрытия тестами
+      # Докер билд
+      - name: Build Docker image
+        run: docker build -t ts-wc-scores:${{ github.sha }} .
+
+      ## Создание Артефактов
+      # Артефакт: создание jar файла
+      - name: Upload application
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs/*.jar
+
+      # Артефакт: степень покрытия тестами
       - name: Upload JaCoCo report
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,17 +58,19 @@ jobs:
           name: jacoco-report
           path: build/reports/jacoco/test/html
 
-      # Создание jar файла
-      - name: Upload application
-        if: success()
+      # Артефакт: отчет по тестам
+      - name: Upload test reports
         uses: actions/upload-artifact@v4
         with:
-          name: application
-          path: build/libs/*.jar
+          name: test-report
+          path: build/reports/tests
 
-      # Докер билд
-      - name: Build Docker image
-        run: docker build -t ts-wc-scores:${{ github.sha }} .
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
 ### Тестовый запуск контейнеров так же можно сделать, но пока не нужно ###
 #      - name: Create CI env

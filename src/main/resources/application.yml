@@ -27,9 +27,9 @@ football-data:
     competition-code: WC
 
 scoring:
-  exact-score: 5
-  correct-outcome: 2
-  goal-difference: 1
+  exact-score: 15
+  correct-outcome: 6
+  goal-difference: 3
 
 scheduler:
   sync-matches: "0 0 */2 * * *"
