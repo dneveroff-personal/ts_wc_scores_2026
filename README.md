@@ -100,19 +100,19 @@ make run
 
 ```bash
 # Один раз — настройка сервера (устанавливает Java, rsync)
-scp scripts/setup-vps.sh root@YOUR_IP:~/
-ssh root@YOUR_IP "bash setup-vps.sh"
-ssh root@YOUR_IP "nano ~/ts-wc-scores/.env"   # заполнить токены
+scp scripts/setup-vps.sh root@HOST_IP:~/
+ssh root@HOST_IP "bash setup-vps.sh"
+ssh root@HOST_IP "nano ~/ts-wc-scores/.env"   # заполнить токены
 
 # Деплой (после каждого изменения)
-make deploy HOST=root@YOUR_IP
+make deploy HOST=root@HOST_IP
 
 # Логи на сервере
-make logs-vps HOST=root@YOUR_IP
+make logs-vps HOST=root@HOST_IP
 
 ## Перенос БД
 # Dump on vps
-ssh root@YOUR_IP "docker exec wc_scores_db pg_dump -U wc_user -d wc_scores" > backup_from_vps.sql
+ssh root@HOST_IP "docker exec wc_scores_db pg_dump -U wc_user -d wc_scores" > backup_from_vps.sql
 
 # Pull on local
 docker exec -i wc_scores_db psql -U wc_user -d postgres -c "DROP DATABASE IF EXISTS wc_scores;"
@@ -123,9 +123,8 @@ docker exec -i wc_scores_db psql -U wc_user -d wc_scores < backup_from_vps.sql
 docker exec wc_scores_db pg_dump -U wc_user -d wc_scores > backup_local_fixed.sql
 
 # Pull on vps
-cat backup_local_fixed.sql | ssh root@YOUR_IP "cd ~/ts-wc-scores/ && docker compose stop app && docker exec -i wc_scores_db psql -U wc_user -d postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='wc_scores' AND pid<>pg_backend_pid();\" && docker exec -i wc_scores_db psql -U wc_user -d postgres -c \"DROP DATABASE IF EXISTS wc_scores;\" && docker exec -i wc_scores_db psql -U wc_user -d postgres -c \"CREATE DATABASE wc_scores OWNER wc_user;\" && docker exec -i wc_scores_db psql -
-U wc_user -d wc_scores && docker compose start app"
-cat backup_local_fixed.sql | ssh root@YOUR_IP "cd ~/ts-wc-scores/ && docker exec -i wc_scores_db psql -U wc_user -d wc_scores"
+cat backup_local_fixed.sql | ssh root@HOST_IP "cd ~/ts-wc-scores/ && docker compose stop app && docker exec -i wc_scores_db psql -U wc_user -d postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='wc_scores' AND pid<>pg_backend_pid();\" && docker exec -i wc_scores_db psql -U wc_user -d postgres -c \"DROP DATABASE IF EXISTS wc_scores;\" && docker exec -i wc_scores_db psql -U wc_user -d postgres -c \"CREATE DATABASE wc_scores OWNER wc_user;\" && docker exec -i wc_scores_db psql -U wc_user -d wc_scores && docker compose start app"
+cat backup_local_fixed.sql | ssh root@HOST_IP "cd ~/ts-wc-scores/ && docker exec -i wc_scores_db psql -U wc_user -d wc_scores"
 ```
 
 ## Переменные окружения
