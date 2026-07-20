@@ -49,12 +49,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Read version
+        id: version
+        run: echo "VERSION=$(./gradlew properties --console=plain | grep "^version:" | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
+            ghcr.io/${{ github.repository }}:latest
 
       ## Создание Артефактов
       # Артефакт: создание jar файла

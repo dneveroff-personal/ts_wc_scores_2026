@@ -59,10 +59,11 @@ db-restore:
 
 # =========================================================
 # Деплой
+# make deploy-ghcr HOST=root@0.0.0.0 VERSION=1.0.0
 # =========================================================
 deploy-ghcr:
 	@echo "Start deploy ..."
-	@if [ -z "$(HOST)" ]; then echo "Usage: make deploy-ghcr HOST=user@server"; exit 1; fi
+	@if [ -z "$(HOST)" ]; then echo "Usage: make deploy-ghcr HOST=user@server VERSION=1.0.0"; exit 1; fi
 	ssh $(HOST) "\
 		cd ~/ts-wc-scores && \
 		docker compose -f docker-compose.prod.yml pull && \

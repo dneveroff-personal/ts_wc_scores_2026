@@ -20,7 +20,7 @@ services:
       retries: 5
 
   app:
-    image: ghcr.io/dneveroff-personal/ts_wc_scores_2026:latest
+    image: ghcr.io/dneveroff-personal/ts_wc_scores_2026:${VERSION}
     container_name: wc_scores_app
     restart: unless-stopped
     depends_on:
