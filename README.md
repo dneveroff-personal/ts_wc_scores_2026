@@ -168,11 +168,26 @@ scripts/
 ```
 
 CI/CD
-✅ Checkout
-✅ JDK
-✅ Gradle cache
-✅ Spotless
-✅ Tests
-✅ Build
-✅ JaCoCo
-✅ Docker Build
+git push
+│
+▼
+GitHub Actions
+│
+▼
+Build + Test
+│
+▼
+Docker Build
+│
+▼
+Push Image to GHCR
+│
+┌───────┴────────┐
+│                │
+▼                ▼
+Manual Deploy     Auto Deploy
+make deploy       SSH Workflow
+
+На сервере:
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d

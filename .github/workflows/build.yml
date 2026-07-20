@@ -35,12 +35,13 @@ jobs:
 
       # Сборка
       - name: Build
-        run: ./gradlew build
+        run: ./gradlew clean build
 
-      # Пробуем Docker BuildX
+      # Docker BuildX
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Публикация package в Registry
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
