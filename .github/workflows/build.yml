@@ -85,22 +85,3 @@ jobs:
         with:
           name: test-report
           path: build/reports/tests
-
-
-### Тестовый запуск контейнеров так же можно сделать, но пока не нужно ###
-#      - name: Create CI env
-#        run: |
-#          echo "BOT_TOKEN=fake-token" > .env
-
-#      - name: Start containers
-#        run: docker compose up -d
-
-#      - name: Wait
-#        run: sleep 30
-
-#      - name: Check application health
-#        run: curl --fail http://localhost:8080/actuator/health
-
-#      - name: Stop containers
-#        if: always()
-#        run: docker compose down

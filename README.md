@@ -1,5 +1,6 @@
 # TS WC Scores 2026 ⚽🏆
 [![Build](https://github.com/dneveroff-personal/ts_wc_scores_2026/actions/workflows/build.yml/badge.svg)](https://github.com/dneveroff-personal/ts_wc_scores_2026/actions/workflows/build.yml)
+[![Deploy](https://github.com/dneveroff-personal/ts_wc_scores_2026/actions/workflows/deploy.yml/badge.svg)](https://github.com/dneveroff-personal/ts_wc_scores_2026/actions/workflows/deploy.yml)
 
 Telegram-бот для прогнозов на матчи Чемпионата мира по футболу 2026.
 Участники группы делают ставки на счёт, получают очки и соревнуются в таблице лидеров.
@@ -98,6 +99,8 @@ make run
 
 ### Деплой на VPS
 
+#### Ручной деплой
+
 ```bash
 # Один раз — настройка сервера (устанавливает Java, rsync)
 scp scripts/setup-vps.sh root@HOST_IP:~/
@@ -109,6 +112,57 @@ make deploy HOST=root@HOST_IP
 
 # Логи на сервере
 make logs-vps HOST=root@HOST_IP
+```
+
+#### Автоматический деплой (Auto Deploy)
+
+При пуше в `main` образ автоматически собирается и деплоится на VPS.
+
+**Настройка GitHub Secrets:**
+
+Зайдите в `Settings → Secrets and variables → Actions` и добавьте:
+
+| Secret | Описание | Пример |
+|--------|----------|--------|
+| `VPS_HOST` | IP или домен VPS | `123.45.67.89` |
+| `VPS_USER` | Пользователь SSH | `root` |
+| `VPS_SSH_KEY` | Приватный SSH ключ | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+| `VPS_PORT` | Порт SSH (опционально) | `22` |
+
+**Настройка GHCR на VPS:**
+
+Для pull образов из GitHub Container Registry создайте файл `~/.docker/config.json`:
+
+```bash
+mkdir -p ~/.docker
+echo '{"auths":{"ghcr.io":{"auth":"'$(echo -n 'USERNAME:PERSONAL_ACCESS_TOKEN' | base64)'"}}}' > ~/.docker/config.json
+```
+
+Где `PERSONAL_ACCESS_TOKEN` — [классический токен](https://github.com/settings/tokens) с правами `read:packages`.
+
+**Как это работает:**
+
+```
+git push → main
+    │
+    ▼
+.github/workflows/build.yml
+    │
+    ▼
+Build + Test + Docker Build
+    │
+    ▼
+Push Image to GHCR
+    │
+    ▼
+.github/workflows/deploy.yml (workflow_run)
+    │
+    ▼
+Auto Deploy (SSH)
+    │
+    ▼
+docker compose pull && up -d
+```
 
 ## Перенос БД
 # Dump on vps
@@ -163,31 +217,32 @@ src/main/java/com/tswcscores/
     └── TelegramUpdate.java            ← DTO апдейтов
 
 scripts/
-├── ts-wc-scores.service   ← systemd сервис для VPS
-└── setup-vps.sh           ← первоначальная настройка сервера
+├── cleanup-vps.sh        ← очистка VPS перед переходом на Docker
+├── setup-vps.sh          ← первоначальная настройка сервера
+└── ts-wc-scores.service  ← systemd сервис для VPS (опционально)
+
+.github/workflows/
+├── build.yml             ← сборка, тесты, сборка и push Docker образа
+└── deploy.yml            ← автоматический деплой на VPS после успешного build
 ```
 
-CI/CD
-git push
-│
-▼
-GitHub Actions
-│
-▼
-Build + Test
-│
-▼
-Docker Build
-│
-▼
-Push Image to GHCR
-│
-┌───────┴────────┐
-│                │
-▼                ▼
-Manual Deploy     Auto Deploy
-make deploy       SSH Workflow
+### CI/CD
 
-На сервере:
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+```
+git push → main
+    │
+    ▼
+GitHub Actions
+    │
+    ▼
+Build + Test + Docker Build
+    │
+    ▼
+Push Image to GHCR
+    │
+    ▼
+Auto Deploy (SSH)
+    │
+    ▼
+docker compose pull && up -d
+```

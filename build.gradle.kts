@@ -11,7 +11,7 @@ plugins {
 }
 
 group = "com.tswcscores"
-version = "5.5.0"
+version = "5.6.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
